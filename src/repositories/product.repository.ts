@@ -24,8 +24,10 @@ export async function findProductById(id: string, db: Db = prisma): Promise<Prod
   return db.product.findUnique({ where: { id } });
 }
 
+/// Name is not unique: imported datasets contain colliding descriptions.
+/// Used only to warn about duplicates when a user creates a product manually.
 export async function findProductByName(name: string, db: Db = prisma): Promise<Product | null> {
-  return db.product.findUnique({ where: { name } });
+  return db.product.findFirst({ where: { name: { equals: name, mode: 'insensitive' } } });
 }
 
 export async function findProductsByIds(ids: string[], db: Db = prisma): Promise<Product[]> {

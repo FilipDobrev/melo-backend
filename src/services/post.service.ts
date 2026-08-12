@@ -68,11 +68,17 @@ export interface CreatePostInput {
   imageKeys: string[];
 }
 
-export async function createPost(input: CreatePostInput): Promise<PostResponse> {
-  const invalidKey = input.imageKeys.find((key) => !key.startsWith(`posts/${input.ownerId}/`));
+/// Rejects any key that is not under the caller's own upload prefix, so a
+/// user cannot attach an image someone else uploaded to their own post.
+export function validateImageKeyOwnership(imageKeys: string[], ownerId: string): void {
+  const invalidKey = imageKeys.find((key) => !key.startsWith(`posts/${ownerId}/`));
   if (invalidKey) {
     throw new BadRequestError('Image keys must belong to the caller');
   }
+}
+
+export async function createPost(input: CreatePostInput): Promise<PostResponse> {
+  validateImageKeyOwnership(input.imageKeys, input.ownerId);
 
   if (input.recipeId) {
     const exists = await postRepository.recipeExists(input.recipeId);

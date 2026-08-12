@@ -4,10 +4,19 @@ import { optionalAuth, requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import * as userController from '../controllers/user.controller';
 import { searchUsersQuerySchema, updateMeSchema, userIdParamsSchema } from '../dto/user.dto';
+import { cookbookListRouter } from './cookbook.routes';
+import { followRouter } from './follow.routes';
+import { userPostRouter } from './post.routes';
+import { userRecipeRouter } from './recipe.routes';
 
-/// Other agents mount follow/followers/following/posts/recipes routes onto
-/// this same router; only the routes this slice owns are defined here.
 export const userRouter = Router();
+
+/// Sub-routers owned by the follow, cookbook, post and recipe slices.
+/// Mounted before /:userId so their literal paths win the match.
+userRouter.use(cookbookListRouter);
+userRouter.use(followRouter);
+userRouter.use(userPostRouter);
+userRouter.use(userRecipeRouter);
 
 userRouter.get('/me', requireAuth, asyncHandler(userController.getMe));
 userRouter.patch(

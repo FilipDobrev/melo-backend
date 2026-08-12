@@ -1,37 +1,33 @@
-import type { Request, Response } from 'express';
 import { getUserId } from '../middleware/auth';
 import * as cookbookService from '../services/cookbook.service';
-import { recipeIdParamsSchema, listCookbookQuerySchema } from '../dto/cookbook.dto';
-import type { RecipeIdParams, ListCookbookQuery } from '../dto/cookbook.dto';
+import type { SavedRecipeSummary } from '../repositories/cookbook.repository';
+import type { ListCookbookQuery } from '../dto/cookbook.dto';
+import type { Page } from '../lib/pagination';
+import type { RecipeIdParams, TypedRequest, TypedResponse } from '../types/http';
 
-/// `validate()` already parsed req.params/req.query against these schemas
-/// before the handler runs; re-parsing here just recovers the precise type
-/// (Express types params/query as loose string dictionaries) without an
-/// `as` assertion.
-function params(req: Request): RecipeIdParams {
-  return recipeIdParamsSchema.parse(req.params);
-}
-function query(req: Request): ListCookbookQuery {
-  return listCookbookQuerySchema.parse(req.query);
-}
-
-export async function save(req: Request, res: Response): Promise<void> {
-  const currentUserId = getUserId(req);
-  const { recipeId } = params(req);
-  await cookbookService.saveRecipe(currentUserId, recipeId);
+export async function save(
+  req: TypedRequest<void, unknown, RecipeIdParams>,
+  res: TypedResponse<void>,
+): Promise<void> {
+  const { recipeId } = req.params;
+  await cookbookService.saveRecipe(getUserId(req), recipeId);
   res.status(204).send();
 }
 
-export async function remove(req: Request, res: Response): Promise<void> {
-  const currentUserId = getUserId(req);
-  const { recipeId } = params(req);
-  await cookbookService.removeSavedRecipe(currentUserId, recipeId);
+export async function remove(
+  req: TypedRequest<void, unknown, RecipeIdParams>,
+  res: TypedResponse<void>,
+): Promise<void> {
+  const { recipeId } = req.params;
+  await cookbookService.removeSavedRecipe(getUserId(req), recipeId);
   res.status(204).send();
 }
 
-export async function listCookbook(req: Request, res: Response): Promise<void> {
-  const currentUserId = getUserId(req);
-  const { cursor, limit, categorySlugs } = query(req);
-  const page = await cookbookService.listCookbook(currentUserId, cursor, limit, categorySlugs);
+export async function listCookbook(
+  req: TypedRequest<void, ListCookbookQuery>,
+  res: TypedResponse<Page<SavedRecipeSummary>>,
+): Promise<void> {
+  const { cursor, limit, categorySlugs } = req.query;
+  const page = await cookbookService.listCookbook(getUserId(req), cursor, limit, categorySlugs);
   res.status(200).json(page);
 }

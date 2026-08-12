@@ -69,9 +69,14 @@ model Follow {
 /// Nutrition is stored per 100 g. Volume and piece units convert via
 /// densityGPerMl / gramsPerPiece, which are null when the product cannot
 /// be measured that way.
+/// `source` + `externalId` identify a row in its originating dataset, e.g.
+/// the USDA SR food id. They make a bulk backfill idempotent and re-runnable.
+/// Name is deliberately NOT unique: SR descriptions collide and are verbose.
 model Product {
   id             String   @id @default(uuid())
-  name           String   @unique
+  name           String
+  source         String   @default("manual")
+  externalId     String?
   caloriesPer100g Float
   proteinPer100g  Float
   carbsPer100g    Float
@@ -83,6 +88,7 @@ model Product {
 
   ingredients RecipeIngredient[]
 
+  @@unique([source, externalId])
   @@index([name])
 }
 

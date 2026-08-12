@@ -11,8 +11,12 @@ import { cursorPaginationSchema } from '../lib/pagination';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { optionalAuth, requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
+import { cookbookSaveRouter } from './cookbook.routes';
 
 export const recipeRouter = Router();
+
+/// Cookbook save/unsave lives on the recipe path; owned by the cookbook slice.
+recipeRouter.use(cookbookSaveRouter);
 
 recipeRouter.get(
   '/',
