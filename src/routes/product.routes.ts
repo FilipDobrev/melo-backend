@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import * as productController from '../controllers/product.controller';
 import { createProductSchema, listProductsQuerySchema, productIdParamsSchema } from '../dto/product.dto';
-import { asyncHandler } from '../middleware/asyncHandler';
-import { requireAuth } from '../middleware/auth';
+import { asyncHandler, authed } from '../middleware/asyncHandler';
 import { validate } from '../middleware/validate';
 
 export const productRouter = Router();
@@ -21,7 +20,6 @@ productRouter.get(
 
 productRouter.post(
   '/',
-  requireAuth,
   validate({ body: createProductSchema }),
-  asyncHandler(productController.createProduct),
+  ...authed(productController.createProduct),
 );

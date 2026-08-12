@@ -1,30 +1,34 @@
-import { getUserId } from '../middleware/auth';
 import * as followService from '../services/follow.service';
 import type { UserSummary } from '../repositories/follow.repository';
 import type { ListFollowQuery } from '../dto/follow.dto';
 import type { Page } from '../lib/pagination';
-import type { TypedRequest, TypedResponse, UserIdParams } from '../types/http';
+import type {
+  AuthorizedRequest,
+  TypedResponse,
+  UnauthorizedRequest,
+  UserIdParams,
+} from '../types/http';
 
 export async function follow(
-  req: TypedRequest<void, unknown, UserIdParams>,
+  req: AuthorizedRequest<void, unknown, UserIdParams>,
   res: TypedResponse<void>,
 ): Promise<void> {
   const { userId } = req.params;
-  await followService.followUser(getUserId(req), userId);
+  await followService.followUser(req.userId, userId);
   res.status(204).send();
 }
 
 export async function unfollow(
-  req: TypedRequest<void, unknown, UserIdParams>,
+  req: AuthorizedRequest<void, unknown, UserIdParams>,
   res: TypedResponse<void>,
 ): Promise<void> {
   const { userId } = req.params;
-  await followService.unfollowUser(getUserId(req), userId);
+  await followService.unfollowUser(req.userId, userId);
   res.status(204).send();
 }
 
 export async function listFollowers(
-  req: TypedRequest<void, ListFollowQuery, UserIdParams>,
+  req: UnauthorizedRequest<void, ListFollowQuery, UserIdParams>,
   res: TypedResponse<Page<UserSummary>>,
 ): Promise<void> {
   const { userId } = req.params;
@@ -34,7 +38,7 @@ export async function listFollowers(
 }
 
 export async function listFollowing(
-  req: TypedRequest<void, ListFollowQuery, UserIdParams>,
+  req: UnauthorizedRequest<void, ListFollowQuery, UserIdParams>,
   res: TypedResponse<Page<UserSummary>>,
 ): Promise<void> {
   const { userId } = req.params;

@@ -8,8 +8,8 @@ import {
 } from '../dto/recipe.dto';
 import { userIdParamsSchema } from '../dto/user.dto';
 import { cursorPaginationSchema } from '../lib/pagination';
-import { asyncHandler } from '../middleware/asyncHandler';
-import { optionalAuth, requireAuth } from '../middleware/auth';
+import { asyncHandler, authed } from '../middleware/asyncHandler';
+import { optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import { cookbookSaveRouter } from './cookbook.routes';
 
@@ -34,23 +34,20 @@ recipeRouter.get(
 
 recipeRouter.post(
   '/',
-  requireAuth,
   validate({ body: createRecipeSchema }),
-  asyncHandler(recipeController.createRecipe),
+  ...authed(recipeController.createRecipe),
 );
 
 recipeRouter.patch(
   '/:recipeId',
-  requireAuth,
   validate({ params: recipeIdParamsSchema, body: updateRecipeSchema }),
-  asyncHandler(recipeController.updateRecipe),
+  ...authed(recipeController.updateRecipe),
 );
 
 recipeRouter.delete(
   '/:recipeId',
-  requireAuth,
   validate({ params: recipeIdParamsSchema }),
-  asyncHandler(recipeController.deleteRecipe),
+  ...authed(recipeController.deleteRecipe),
 );
 
 /// Mounts on userRouter as GET /users/:userId/recipes. Not wired here -

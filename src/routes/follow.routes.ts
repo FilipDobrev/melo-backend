@@ -2,8 +2,8 @@
 // with /users, and this router defines paths relative to that root, e.g.
 // userRouter.use(followRouter) so /:userId/follow etc. resolve correctly.
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/asyncHandler';
-import { optionalAuth, requireAuth } from '../middleware/auth';
+import { asyncHandler, authed } from '../middleware/asyncHandler';
+import { optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import * as followController from '../controllers/follow.controller';
 import { followParamsSchema, listFollowQuerySchema } from '../dto/follow.dto';
@@ -12,16 +12,14 @@ export const followRouter = Router({ mergeParams: true });
 
 followRouter.post(
   '/:userId/follow',
-  requireAuth,
   validate({ params: followParamsSchema }),
-  asyncHandler(followController.follow),
+  ...authed(followController.follow),
 );
 
 followRouter.delete(
   '/:userId/follow',
-  requireAuth,
   validate({ params: followParamsSchema }),
-  asyncHandler(followController.unfollow),
+  ...authed(followController.unfollow),
 );
 
 followRouter.get(

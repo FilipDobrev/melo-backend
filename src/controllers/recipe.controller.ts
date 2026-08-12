@@ -1,12 +1,17 @@
 import type { CreateRecipeInput, ListRecipesQuery, UpdateRecipeInput } from '../dto/recipe.dto';
 import type { CursorPagination, Page } from '../lib/pagination';
-import { getUserId } from '../middleware/auth';
 import * as recipeService from '../services/recipe.service';
 import type { RecipeDetail, RecipeSummary } from '../services/recipe.service';
-import type { RecipeIdParams, TypedRequest, TypedResponse, UserIdParams } from '../types/http';
+import type {
+  AuthorizedRequest,
+  RecipeIdParams,
+  TypedResponse,
+  UnauthorizedRequest,
+  UserIdParams,
+} from '../types/http';
 
 export async function listRecipes(
-  req: TypedRequest<void, ListRecipesQuery>,
+  req: UnauthorizedRequest<void, ListRecipesQuery>,
   res: TypedResponse<Page<RecipeSummary>>,
 ): Promise<void> {
   const page = await recipeService.listRecipes(req.query);
@@ -14,39 +19,39 @@ export async function listRecipes(
 }
 
 export async function getRecipe(
-  req: TypedRequest<void, unknown, RecipeIdParams>,
+  req: UnauthorizedRequest<void, unknown, RecipeIdParams>,
   res: TypedResponse<RecipeDetail>,
 ): Promise<void> {
-  const recipe = await recipeService.getRecipeDetail(req.params.recipeId, req.user?.id);
+  const recipe = await recipeService.getRecipeDetail(req.params.recipeId, req.userId);
   res.json(recipe);
 }
 
 export async function createRecipe(
-  req: TypedRequest<CreateRecipeInput>,
+  req: AuthorizedRequest<CreateRecipeInput>,
   res: TypedResponse<RecipeDetail>,
 ): Promise<void> {
-  const recipe = await recipeService.createRecipe(getUserId(req), req.body);
+  const recipe = await recipeService.createRecipe(req.userId, req.body);
   res.status(201).json(recipe);
 }
 
 export async function updateRecipe(
-  req: TypedRequest<UpdateRecipeInput, unknown, RecipeIdParams>,
+  req: AuthorizedRequest<UpdateRecipeInput, unknown, RecipeIdParams>,
   res: TypedResponse<RecipeDetail>,
 ): Promise<void> {
-  const recipe = await recipeService.updateRecipe(req.params.recipeId, getUserId(req), req.body);
+  const recipe = await recipeService.updateRecipe(req.params.recipeId, req.userId, req.body);
   res.json(recipe);
 }
 
 export async function deleteRecipe(
-  req: TypedRequest<void, unknown, RecipeIdParams>,
+  req: AuthorizedRequest<void, unknown, RecipeIdParams>,
   res: TypedResponse<void>,
 ): Promise<void> {
-  await recipeService.deleteRecipe(req.params.recipeId, getUserId(req));
+  await recipeService.deleteRecipe(req.params.recipeId, req.userId);
   res.status(204).send();
 }
 
 export async function listRecipesByUser(
-  req: TypedRequest<void, CursorPagination, UserIdParams>,
+  req: UnauthorizedRequest<void, CursorPagination, UserIdParams>,
   res: TypedResponse<Page<RecipeSummary>>,
 ): Promise<void> {
   const page = await recipeService.listRecipesByOwner(req.params.userId, req.query);

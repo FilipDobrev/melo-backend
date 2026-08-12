@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/asyncHandler';
-import { optionalAuth, requireAuth } from '../middleware/auth';
+import { asyncHandler, authed } from '../middleware/asyncHandler';
+import { optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import * as userController from '../controllers/user.controller';
 import { searchUsersQuerySchema, updateMeSchema, userIdParamsSchema } from '../dto/user.dto';
@@ -18,13 +18,8 @@ userRouter.use(followRouter);
 userRouter.use(userPostRouter);
 userRouter.use(userRecipeRouter);
 
-userRouter.get('/me', requireAuth, asyncHandler(userController.getMe));
-userRouter.patch(
-  '/me',
-  requireAuth,
-  validate({ body: updateMeSchema }),
-  asyncHandler(userController.updateMe),
-);
+userRouter.get('/me', ...authed(userController.getMe));
+userRouter.patch('/me', validate({ body: updateMeSchema }), ...authed(userController.updateMe));
 
 userRouter.get(
   '/',

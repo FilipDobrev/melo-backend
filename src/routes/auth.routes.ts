@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { asyncHandler } from '../middleware/asyncHandler';
-import { requireAuth } from '../middleware/auth';
+import { asyncHandler, authed } from '../middleware/asyncHandler';
 import { authRateLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
 import * as authController from '../controllers/auth.controller';
@@ -24,9 +23,4 @@ authRouter.post(
 
 authRouter.post('/refresh', validate({ body: refreshSchema }), asyncHandler(authController.refresh));
 
-authRouter.post(
-  '/logout',
-  requireAuth,
-  validate({ body: logoutSchema }),
-  asyncHandler(authController.logout),
-);
+authRouter.post('/logout', validate({ body: logoutSchema }), ...authed(authController.logout));

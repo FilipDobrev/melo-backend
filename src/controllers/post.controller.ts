@@ -1,4 +1,3 @@
-import { getUserId } from '../middleware/auth';
 import type { CreateUploadUrlInput, CreatePostInput, ListPostsQuery } from '../dto/post.dto';
 import type { PutReactionInput } from '../dto/reaction.dto';
 import type { Page } from '../lib/pagination';
@@ -8,14 +7,21 @@ import * as reactionService from '../services/reaction.service';
 import type { ReactionSummary } from '../repositories/reaction.repository';
 import * as storageService from '../services/storage.service';
 import type { CreateUploadUrlResult } from '../services/storage.service';
-import type { PostIdParams, PostImageParams, TypedRequest, TypedResponse, UserIdParams } from '../types/http';
+import type {
+  AuthorizedRequest,
+  PostIdParams,
+  PostImageParams,
+  TypedResponse,
+  UnauthorizedRequest,
+  UserIdParams,
+} from '../types/http';
 
 export async function createUploadUrl(
-  req: TypedRequest<CreateUploadUrlInput>,
+  req: AuthorizedRequest<CreateUploadUrlInput>,
   res: TypedResponse<CreateUploadUrlResult>,
 ): Promise<void> {
   const result = await storageService.createUploadUrl({
-    userId: getUserId(req),
+    userId: req.userId,
     contentType: req.body.contentType,
     contentLength: req.body.contentLength,
   });
@@ -23,11 +29,11 @@ export async function createUploadUrl(
 }
 
 export async function createPost(
-  req: TypedRequest<CreatePostInput>,
+  req: AuthorizedRequest<CreatePostInput>,
   res: TypedResponse<PostResponse>,
 ): Promise<void> {
   const post = await postService.createPost({
-    ownerId: getUserId(req),
+    ownerId: req.userId,
     caption: req.body.caption,
     recipeId: req.body.recipeId,
     imageKeys: req.body.imageKeys,
@@ -36,50 +42,50 @@ export async function createPost(
 }
 
 export async function getPost(
-  req: TypedRequest<void, unknown, PostIdParams>,
+  req: UnauthorizedRequest<void, unknown, PostIdParams>,
   res: TypedResponse<PostResponse>,
 ): Promise<void> {
-  const post = await postService.getPostDetail(req.params.postId, req.user?.id ?? null);
+  const post = await postService.getPostDetail(req.params.postId, req.userId ?? null);
   res.status(200).json(post);
 }
 
 export async function deletePost(
-  req: TypedRequest<void, unknown, PostIdParams>,
+  req: AuthorizedRequest<void, unknown, PostIdParams>,
   res: TypedResponse<void>,
 ): Promise<void> {
-  await postService.deletePost(req.params.postId, getUserId(req));
+  await postService.deletePost(req.params.postId, req.userId);
   res.status(204).end();
 }
 
 export async function deletePostImage(
-  req: TypedRequest<void, unknown, PostImageParams>,
+  req: AuthorizedRequest<void, unknown, PostImageParams>,
   res: TypedResponse<void>,
 ): Promise<void> {
-  await postService.deletePostImage(req.params.postId, req.params.imageId, getUserId(req));
+  await postService.deletePostImage(req.params.postId, req.params.imageId, req.userId);
   res.status(204).end();
 }
 
 export async function putReaction(
-  req: TypedRequest<PutReactionInput, unknown, PostIdParams>,
+  req: AuthorizedRequest<PutReactionInput, unknown, PostIdParams>,
   res: TypedResponse<ReactionSummary>,
 ): Promise<void> {
-  const reactions = await reactionService.upsertReaction(req.params.postId, getUserId(req), req.body.emoji);
+  const reactions = await reactionService.upsertReaction(req.params.postId, req.userId, req.body.emoji);
   res.status(200).json(reactions);
 }
 
 export async function deleteReaction(
-  req: TypedRequest<void, unknown, PostIdParams>,
+  req: AuthorizedRequest<void, unknown, PostIdParams>,
   res: TypedResponse<void>,
 ): Promise<void> {
-  await reactionService.removeReaction(req.params.postId, getUserId(req));
+  await reactionService.removeReaction(req.params.postId, req.userId);
   res.status(204).end();
 }
 
 export async function listUserPosts(
-  req: TypedRequest<void, ListPostsQuery, UserIdParams>,
+  req: UnauthorizedRequest<void, ListPostsQuery, UserIdParams>,
   res: TypedResponse<Page<PostResponse>>,
 ): Promise<void> {
-  const page = await postService.listUserPosts(req.params.userId, req.user?.id ?? null, {
+  const page = await postService.listUserPosts(req.params.userId, req.userId ?? null, {
     cursor: req.query.cursor,
     limit: req.query.limit,
   });

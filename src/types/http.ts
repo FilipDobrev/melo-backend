@@ -5,37 +5,67 @@ export interface ErrorResponse {
   error: { code: string; message: string; details?: unknown };
 }
 
-/// Request whose body, query and params carry the types that `validate()`
-/// actually wrote at runtime.
+/// Body, query and params carry the types that `validate()` actually wrote.
 ///
-/// `query` is intersected rather than declared on an interface extending
-/// Request, because Express types it as ParsedQs (string | string[] only),
-/// which cannot express the numbers and arrays zod coercion produces.
-export type TypedRequest<
-  TBody = void,
-  TQuery = unknown,
-  TParams extends ParamsDictionary = ParamsDictionary,
-> = Omit<Request<TParams, unknown, TBody>, 'query'> & {
+/// `query` is replaced rather than narrowed, because Express types it as
+/// ParsedQs (string | string[] only), which cannot express the numbers and
+/// arrays that zod coercion produces. Constraining to ParsedQs instead would
+/// mean `?limit=20` types as string while holding a number at runtime.
+type BaseRequest<TBody, TQuery, TParams extends ParamsDictionary> = Omit<
+  Request<TParams, unknown, TBody>,
+  'query'
+> & {
   query: TQuery;
 };
 
-/// Response body is the success payload; the error shape is always possible
+/// A request on a public route. There is no authenticated user.
+export type UnauthorizedRequest<
+  TBody = void,
+  TQuery = unknown,
+  TParams extends ParamsDictionary = ParamsDictionary,
+> = BaseRequest<TBody, TQuery, TParams>;
+
+/// A request on a guarded route. `userId` is guaranteed present.
+///
+/// Only reachable through `authed()` in middleware/authed.ts, which mounts
+/// requireAuth alongside the handler. Declaring this type without that helper
+/// fails to compile, so the guarantee cannot be silently broken.
+export type AuthorizedRequest<
+  TBody = void,
+  TQuery = unknown,
+  TParams extends ParamsDictionary = ParamsDictionary,
+> = BaseRequest<TBody, TQuery, TParams> & {
+  userId: string;
+};
+
+/// Response body is the success payload. The error shape is always possible,
 /// because the global error handler may take over.
 export type TypedResponse<TBody = void> = Response<TBody | ErrorResponse>;
 
-export type TypedHandler<
+export type UnauthorizedHandler<
   TBody = void,
   TQuery = unknown,
   TParams extends ParamsDictionary = ParamsDictionary,
   TResBody = unknown,
 > = (
-  req: TypedRequest<TBody, TQuery, TParams>,
+  req: UnauthorizedRequest<TBody, TQuery, TParams>,
   res: TypedResponse<TResBody>,
   next: NextFunction,
 ) => Promise<void>;
 
-/// Params carried by routes in this API. Declaring them once keeps the
-/// per-controller generics readable.
+export type AuthorizedHandler<
+  TBody = void,
+  TQuery = unknown,
+  TParams extends ParamsDictionary = ParamsDictionary,
+  TResBody = unknown,
+> = (
+  req: AuthorizedRequest<TBody, TQuery, TParams>,
+  res: TypedResponse<TResBody>,
+  next: NextFunction,
+) => Promise<void>;
+
+/// Params carried by routes in this API. Declared once so the per-controller
+/// generics stay readable.
 export interface UserIdParams extends ParamsDictionary {
   userId: string;
 }

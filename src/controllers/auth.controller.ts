@@ -1,11 +1,10 @@
-import { getUserId } from '../middleware/auth';
 import * as authService from '../services/auth.service';
 import type { AuthResult, RefreshResult } from '../services/auth.service';
 import type { LoginInput, LogoutInput, RefreshInput, RegisterInput } from '../dto/auth.dto';
-import type { TypedRequest, TypedResponse } from '../types/http';
+import type { AuthorizedRequest, TypedResponse, UnauthorizedRequest } from '../types/http';
 
 export async function register(
-  req: TypedRequest<RegisterInput>,
+  req: UnauthorizedRequest<RegisterInput>,
   res: TypedResponse<AuthResult>,
 ): Promise<void> {
   const result = await authService.register(req.body);
@@ -13,7 +12,7 @@ export async function register(
 }
 
 export async function login(
-  req: TypedRequest<LoginInput>,
+  req: UnauthorizedRequest<LoginInput>,
   res: TypedResponse<AuthResult>,
 ): Promise<void> {
   const result = await authService.login(req.body);
@@ -21,7 +20,7 @@ export async function login(
 }
 
 export async function refresh(
-  req: TypedRequest<RefreshInput>,
+  req: UnauthorizedRequest<RefreshInput>,
   res: TypedResponse<RefreshResult>,
 ): Promise<void> {
   const result = await authService.refresh(req.body.refreshToken);
@@ -29,9 +28,9 @@ export async function refresh(
 }
 
 export async function logout(
-  req: TypedRequest<LogoutInput>,
+  req: AuthorizedRequest<LogoutInput>,
   res: TypedResponse<void>,
 ): Promise<void> {
-  await authService.logout(getUserId(req), req.body.refreshToken);
+  await authService.logout(req.userId, req.body.refreshToken);
   res.status(204).send();
 }

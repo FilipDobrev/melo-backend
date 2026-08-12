@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { validate } from '../middleware/validate';
-import { requireAuth, optionalAuth } from '../middleware/auth';
-import { asyncHandler } from '../middleware/asyncHandler';
+import { optionalAuth } from '../middleware/auth';
+import { asyncHandler, authed } from '../middleware/asyncHandler';
 import * as commentController from '../controllers/comment.controller';
 import { postIdParamsSchema, type PostIdParams } from '../dto/post.dto';
 import {
@@ -18,9 +18,8 @@ export const commentRouter = Router();
 
 commentRouter.post<PostIdParams, unknown, CreateCommentInput>(
   '/:postId/comments',
-  requireAuth,
   validate({ params: postIdParamsSchema, body: createCommentSchema }),
-  asyncHandler(commentController.createComment),
+  ...authed(commentController.createComment),
 );
 
 commentRouter.get<PostIdParams>(
@@ -32,7 +31,6 @@ commentRouter.get<PostIdParams>(
 
 commentRouter.delete<CommentIdParams>(
   '/:postId/comments/:commentId',
-  requireAuth,
   validate({ params: commentIdParamsSchema }),
-  asyncHandler(commentController.deleteComment),
+  ...authed(commentController.deleteComment),
 );

@@ -9,6 +9,8 @@ function readBearerToken(req: Request): string | null {
   return token.length > 0 ? token : null;
 }
 
+/// Middleware runs before validate(), so body and query are still raw here.
+/// It deals in plain Express requests and only writes `userId`.
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   const token = readBearerToken(req);
   if (!token) {
@@ -16,8 +18,7 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
     return;
   }
   try {
-    const payload = verifyAccessToken(token);
-    req.user = { id: payload.sub };
+    req.userId = verifyAccessToken(token).sub;
     next();
   } catch {
     next(new UnauthenticatedError('Invalid or expired access token'));
@@ -33,24 +34,9 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
     return;
   }
   try {
-    req.user = { id: verifyAccessToken(token).sub };
+    req.userId = verifyAccessToken(token).sub;
   } catch {
     // An invalid token on a public route is treated as anonymous.
   }
   next();
-}
-
-/// Narrows `req.user` for handlers mounted behind requireAuth.
-///
-/// Takes the minimal structural shape rather than Express's Request, so it
-/// accepts a TypedRequest too. TypedRequest replaces `query`, which makes it
-/// deliberately incompatible with the full Request interface.
-export function getUserId(req: { user?: { id: string } }): string {
-  if (!req.user) throw new UnauthenticatedError();
-  return req.user.id;
-}
-
-/// Same, for handlers that work with or without a signed-in viewer.
-export function getOptionalUserId(req: { user?: { id: string } }): string | undefined {
-  return req.user?.id;
 }
