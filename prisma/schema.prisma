@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Unit {
+  GRAM
+  KILOGRAM
+  MILLILITRE
+  LITRE
+  CUP
+  TABLESPOON
+  TEASPOON
+  PIECE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  profileImage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  recipes       Recipe[]
+  posts         Post[]
+  comments      Comment[]
+  reactions     Reaction[]
+  cookbook      CookbookSave[]
+  refreshTokens RefreshToken[]
+  following     Follow[]       @relation("Follower")
+  followers     Follow[]       @relation("Following")
+
+  @@index([username])
+}
+
+/// Hashed refresh tokens. Rotated on use; revokedAt set on logout or rotation.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+}
+
+/// Nutrition is stored per 100 g. Volume and piece units convert via
+/// densityGPerMl / gramsPerPiece, which are null when the product cannot
+/// be measured that way.
+model Product {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  caloriesPer100g Float
+  proteinPer100g  Float
+  carbsPer100g    Float
+  fatPer100g      Float
+  densityGPerMl   Float?
+  gramsPerPiece   Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  ingredients RecipeIngredient[]
+
+  @@index([name])
+}
+
+model Recipe {
+  id           String   @id @default(uuid())
+  ownerId      String
+  title        String
+  description  String
+  instructions String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  owner       User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+  categories  RecipeCategory[]
+  savedBy     CookbookSave[]
+  posts       Post[]
+
+  @@index([ownerId, createdAt])
+}
+
+model RecipeIngredient {
+  id        String @id @default(uuid())
+  recipeId  String
+  productId String
+  quantity  Float
+  unit      Unit
+
+  recipe  Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([recipeId])
+  @@index([productId])
+}
+
+/// Seeded, fixed set. Users assign but never create these.
+model Category {
+  id   String @id @default(uuid())
+  slug String @unique
+  name String
+
+  recipes RecipeCategory[]
+}
+
+model RecipeCategory {
+  recipeId   String
+  categoryId String
+
+  recipe   Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([recipeId, categoryId])
+  @@index([categoryId])
+}
+
+model CookbookSave {
+  id        String   @id @default(uuid())
+  userId    String
+  recipeId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, recipeId])
+  @@index([userId, createdAt])
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  ownerId   String
+  recipeId  String?
+  caption   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner     User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  recipe    Recipe?    @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  images    PostImage[]
+  comments  Comment[]
+  reactions Reaction[]
+
+  @@index([ownerId, createdAt])
+  @@index([createdAt])
+}
+
+/// Stores the object key only. Binaries live in S3-compatible storage.
+model PostImage {
+  id        String   @id @default(uuid())
+  postId    String
+  storageKey String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
