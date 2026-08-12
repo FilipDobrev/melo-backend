@@ -61,6 +61,11 @@ Paginated query params: `?cursor=<uuid>&limit=<1..50>` (default 20).
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
 | POST | `/posts/images/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }` presigned PUT |
+
+`contentLength` and `contentType` are part of the signature. The subsequent PUT
+must send exactly those bytes and that content type, or storage rejects it with
+a 403 that the API never sees. Measure the file, do not estimate.
+
 | POST | `/posts` | yes | `{ caption?, recipeId?, imageKeys: string[] }` min 1 image |
 | GET | `/posts/:postId` | optional | detail incl. reaction summary + comment count |
 | DELETE | `/posts/:postId` | yes, owner | 204 |

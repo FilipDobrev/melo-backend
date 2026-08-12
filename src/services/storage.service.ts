@@ -18,6 +18,11 @@ const UPLOAD_URL_TTL_SECONDS = 300;
 const s3Client = new S3Client({
   region: env.S3_REGION,
   endpoint: env.S3_ENDPOINT,
+  // A custom endpoint means a self-hosted, S3-compatible store such as MinIO.
+  // Those serve buckets as a path segment, whereas the SDK defaults to the
+  // virtual-hosted form (bucket.host), which does not resolve there.
+  // Real AWS S3 keeps the default.
+  forcePathStyle: Boolean(env.S3_ENDPOINT),
   credentials: {
     accessKeyId: env.S3_ACCESS_KEY_ID,
     secretAccessKey: env.S3_SECRET_ACCESS_KEY,

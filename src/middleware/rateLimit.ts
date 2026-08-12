@@ -1,10 +1,11 @@
 import rateLimit from 'express-rate-limit';
+import { env } from '../config/env';
 
 /// Throttles credential-guessing and account-enumeration attempts against
 /// login/register. Not applied elsewhere.
 export const authRateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
+  windowMs: env.AUTH_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
+  limit: env.AUTH_RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, res) => {

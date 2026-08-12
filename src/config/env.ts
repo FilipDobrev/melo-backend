@@ -11,6 +11,10 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
+  /// Login/register attempts allowed per IP per window. The default is the
+  /// production value; raise it locally so repeated test runs are not blocked.
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  AUTH_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
   CORS_ORIGINS: z.string().default('*'),
 
   S3_BUCKET: z.string().min(1),
