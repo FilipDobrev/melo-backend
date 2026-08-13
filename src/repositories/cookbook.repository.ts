@@ -1,4 +1,4 @@
-import { prisma, type Db } from '../lib/prisma';
+import {prisma, type Db} from '../lib/prisma';
 
 export interface UserSummary {
   id: string;
@@ -25,12 +25,12 @@ const savedRecipeSelect = {
   title: true,
   description: true,
   createdAt: true,
-  owner: { select: { id: true, username: true, profileImage: true } },
-  categories: { select: { category: { select: { slug: true, name: true } } } },
+  owner: {select: {id: true, username: true, profileImage: true}},
+  categories: {select: {category: {select: {slug: true, name: true}}}},
 } as const;
 
 export async function recipeExists(recipeId: string, db: Db = prisma): Promise<boolean> {
-  const recipe = await db.recipe.findUnique({ where: { id: recipeId }, select: { id: true } });
+  const recipe = await db.recipe.findUnique({where: {id: recipeId}, select: {id: true}});
   return recipe !== null;
 }
 
@@ -38,13 +38,23 @@ export async function recipeExists(recipeId: string, db: Db = prisma): Promise<b
 /// which the error middleware maps to 409. Only references the recipe, it
 /// never copies its data or changes ownership.
 export async function createSave(userId: string, recipeId: string, db: Db = prisma): Promise<void> {
-  await db.cookbookSave.create({ data: { userId, recipeId } });
+  await db.cookbookSave.create({data: {userId, recipeId}});
+}
+
+/// Idempotent variant used when a save is a side effect rather than the
+/// request itself, e.g. adding a recipe to a collection.
+export async function ensureSave(userId: string, recipeId: string, db: Db = prisma): Promise<void> {
+  await db.cookbookSave.upsert({
+    where: {userId_recipeId: {userId, recipeId}},
+    update: {},
+    create: {userId, recipeId},
+  });
 }
 
 /// Deletes via the compound unique key; a missing row raises P2025, which
 /// the error middleware maps to 404.
 export async function deleteSave(userId: string, recipeId: string, db: Db = prisma): Promise<void> {
-  await db.cookbookSave.delete({ where: { userId_recipeId: { userId, recipeId } } });
+  await db.cookbookSave.delete({where: {userId_recipeId: {userId, recipeId}}});
 }
 
 /// recipeId is unique within this filtered set (per the compound unique
@@ -60,13 +70,13 @@ export async function listSavedRecipes(
     where: {
       userId,
       ...(categorySlugs && categorySlugs.length > 0
-        ? { recipe: { categories: { some: { category: { slug: { in: categorySlugs } } } } } }
+        ? {recipe: {categories: {some: {category: {slug: {in: categorySlugs}}}}}}
         : {}),
     },
-    orderBy: [{ createdAt: 'desc' }, { recipeId: 'desc' }],
+    orderBy: [{createdAt: 'desc'}, {recipeId: 'desc'}],
     take: limit + 1,
-    ...(cursor ? { cursor: { userId_recipeId: { userId, recipeId: cursor } }, skip: 1 } : {}),
-    select: { recipe: { select: savedRecipeSelect } },
+    ...(cursor ? {cursor: {userId_recipeId: {userId, recipeId: cursor}}, skip: 1} : {}),
+    select: {recipe: {select: savedRecipeSelect}},
   });
   return rows.map((row) => ({
     ...row.recipe,

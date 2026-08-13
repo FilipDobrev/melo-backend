@@ -9,7 +9,8 @@ export type CreateUploadUrlInput = z.infer<typeof createUploadUrlSchema>;
 
 export const createPostSchema = z.object({
   caption: z.string().trim().max(2000).optional(),
-  recipeId: z.string().uuid().optional(),
+  // A post always documents cooking a recipe, so the link is required.
+  recipeId: z.string().uuid(),
   imageKeys: z.array(z.string().trim().min(1)).min(1).max(10),
 });
 export type CreatePostInput = z.infer<typeof createPostSchema>;

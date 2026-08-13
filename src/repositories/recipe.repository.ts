@@ -30,12 +30,24 @@ const recipeSummaryInclude = {
 
 export type RecipeSummaryRow = Prisma.RecipeGetPayload<{ include: typeof recipeSummaryInclude }>;
 
+export type RecipeSort = 'newest' | 'oldest' | 'popular';
+
 export interface RecipeListParams {
   search?: string;
   categorySlugs?: string[];
   ownerId?: string;
+  sort?: RecipeSort;
   cursor?: string;
   limit: number;
+}
+
+/// `id` is always the last key so the ordering is total, which is what makes
+/// the id cursor a stable page boundary. Popularity is the number of
+/// cookbook saves.
+function orderFor(sort: RecipeSort): Prisma.RecipeOrderByWithRelationInput[] {
+  if (sort === 'oldest') return [{ createdAt: 'asc' }, { id: 'asc' }];
+  if (sort === 'popular') return [{ savedBy: { _count: 'desc' } }, { id: 'desc' }];
+  return [{ createdAt: 'desc' }, { id: 'desc' }];
 }
 
 /// Recipes matching ANY of the given categorySlugs are returned (not all).
@@ -51,7 +63,7 @@ export async function findManyRecipes(params: RecipeListParams, db: Db = prisma)
   return db.recipe.findMany({
     where,
     include: recipeSummaryInclude,
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    orderBy: orderFor(params.sort ?? 'newest'),
     take: params.limit + 1,
     ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
   });
