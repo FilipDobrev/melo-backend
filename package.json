@@ -15,7 +15,8 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "tokens:prune": "tsx --env-file-if-exists=.env scripts/prune-refresh-tokens.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

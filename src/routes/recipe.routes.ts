@@ -13,6 +13,7 @@ import { userIdParamsSchema } from '../dto/user.dto';
 import { cursorPaginationSchema } from '../lib/pagination';
 import { asyncHandler, authed } from '../middleware/asyncHandler';
 import { optionalAuth } from '../middleware/auth';
+import { uploadUrlRateLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
 import { cookbookSaveRouter } from './cookbook.routes';
 
@@ -32,6 +33,7 @@ recipeRouter.get(
 /// swallow them as a recipe id lookup instead.
 recipeRouter.post<ParamsDictionary, unknown, CreateRecipeUploadUrlInput>(
   '/images/upload-url',
+  uploadUrlRateLimiter,
   validate({ body: createRecipeUploadUrlSchema }),
   ...authed(recipeController.createUploadUrl),
 );

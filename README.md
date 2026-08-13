@@ -20,7 +20,7 @@ npm run prisma:seed           # categories + starter products
 npm run dev                   # http://localhost:4000
 ```
 
-Health check: `GET /health`.
+Health check: `GET /health` (liveness), `GET /health/ready` (readiness, checks the database). See API.md.
 
 ## Scripts
 
