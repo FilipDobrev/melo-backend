@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { prisma, type Db } from '../lib/prisma';
 import { DEFAULT_PAGE_SIZE } from '../lib/pagination';
 
