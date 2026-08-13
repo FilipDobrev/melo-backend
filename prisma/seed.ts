@@ -23,6 +23,25 @@ const categories: Array<{ slug: string; name: string }> = [
   { slug: 'drink', name: 'Drink' },
   { slug: 'seafood', name: 'Seafood' },
   { slug: 'pasta', name: 'Pasta' },
+  // Cuisines
+  { slug: 'greek', name: 'Greek' },
+  { slug: 'asian', name: 'Asian' },
+  { slug: 'chinese', name: 'Chinese' },
+  { slug: 'japanese', name: 'Japanese' },
+  { slug: 'italian', name: 'Italian' },
+  { slug: 'indian', name: 'Indian' },
+  { slug: 'thai', name: 'Thai' },
+  { slug: 'mexican', name: 'Mexican' },
+  { slug: 'mediterranean', name: 'Mediterranean' },
+  { slug: 'korean', name: 'Korean' },
+  { slug: 'french', name: 'French' },
+  { slug: 'spanish', name: 'Spanish' },
+  { slug: 'middle-eastern', name: 'Middle Eastern' },
+  // Diets
+  { slug: 'keto', name: 'Keto' },
+  { slug: 'pescatarian', name: 'Pescatarian' },
+  { slug: 'paleo', name: 'Paleo' },
+  { slug: 'dairy-free', name: 'Dairy-Free' },
 ];
 
 /// Nutrition is per 100 g, taken from typical USDA reference values.

@@ -4,6 +4,7 @@ import { optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
 import * as userController from '../controllers/user.controller';
 import { searchUsersQuerySchema, updateMeSchema, userIdParamsSchema } from '../dto/user.dto';
+import { collectionRouter } from './collection.routes';
 import { cookbookListRouter } from './cookbook.routes';
 import { followRouter } from './follow.routes';
 import { userPostRouter } from './post.routes';
@@ -13,6 +14,7 @@ export const userRouter = Router();
 
 /// Sub-routers owned by the follow, cookbook, post and recipe slices.
 /// Mounted before /:userId so their literal paths win the match.
+userRouter.use(collectionRouter);
 userRouter.use(cookbookListRouter);
 userRouter.use(followRouter);
 userRouter.use(userPostRouter);

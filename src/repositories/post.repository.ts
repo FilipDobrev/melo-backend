@@ -53,7 +53,7 @@ export interface CreatePostImageData {
 export interface CreatePostData {
   ownerId: string;
   caption?: string;
-  recipeId?: string;
+  recipeId: string;
   images: CreatePostImageData[];
 }
 

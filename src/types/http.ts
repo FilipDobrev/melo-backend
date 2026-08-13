@@ -91,3 +91,12 @@ export interface PostCommentParams extends ParamsDictionary {
 export interface ProductIdParams extends ParamsDictionary {
   productId: string;
 }
+
+export interface CollectionIdParams extends ParamsDictionary {
+  collectionId: string;
+}
+
+export interface CollectionRecipeParams extends ParamsDictionary {
+  collectionId: string;
+  recipeId: string;
+}

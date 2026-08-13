@@ -105,6 +105,7 @@ export async function listRecipes(query: ListRecipesQuery): Promise<Page<RecipeS
   const rows = await recipeRepository.findManyRecipes({
     search: query.search,
     categorySlugs: query.categorySlugs,
+    sort: query.sort,
     cursor: query.cursor,
     limit: query.limit,
   });

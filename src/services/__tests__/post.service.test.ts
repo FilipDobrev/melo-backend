@@ -13,7 +13,25 @@ function buildRow(overrides: Partial<PostCardRow> = {}): PostCardRow {
     ownerId: 'owner-1',
     owner: { id: 'owner-1', username: 'chef', profileImage: null },
     images: [{ id: 'img-1', storageKey: 'posts/owner-1/a.jpg' }],
-    recipe: null,
+    recipe: {
+      id: 'recipe-1',
+      title: 'Omelette',
+      ingredients: [
+        {
+          quantity: 200,
+          unit: Unit.GRAM,
+          product: {
+            name: 'Egg',
+            caloriesPer100g: 150,
+            proteinPer100g: 13,
+            carbsPer100g: 1,
+            fatPer100g: 11,
+            densityGPerMl: null,
+            gramsPerPiece: null,
+          },
+        },
+      ],
+    },
     _count: { comments: 0 },
     ...overrides,
   };
@@ -40,11 +58,10 @@ describe('validateImageKeyOwnership', () => {
 });
 
 describe('toPostResponse', () => {
-  it('maps a post without a recipe to a null recipe summary', () => {
+  it('maps author, images and comment count', () => {
     const row = buildRow();
     const response = toPostResponse(row, EMPTY_REACTION_SUMMARY);
 
-    expect(response.recipe).toBeNull();
     expect(response.author).toEqual({ id: 'owner-1', username: 'chef', profileImage: null });
     expect(response.images).toEqual([{ id: 'img-1', url: expect.stringContaining('posts/owner-1/a.jpg') }]);
     expect(response.commentCount).toBe(0);

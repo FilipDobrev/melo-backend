@@ -39,8 +39,12 @@ export type RecipeIdParams = z.infer<typeof recipeIdParamsSchema>;
 
 /// categorySlugs is a comma-separated list of slugs in the query string.
 /// A recipe matches if it has ANY of the given categories (not all of them).
+export const recipeSortSchema = z.enum(['newest', 'oldest', 'popular']).default('newest');
+export type RecipeSort = z.infer<typeof recipeSortSchema>;
+
 export const listRecipesQuerySchema = cursorPaginationSchema.extend({
   search: z.string().trim().min(1).max(100).optional(),
+  sort: recipeSortSchema,
   categorySlugs: z
     .string()
     .trim()

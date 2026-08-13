@@ -31,7 +31,7 @@ export interface PostResponse {
   createdAt: Date;
   author: AuthorSummary;
   images: PostImageDto[];
-  recipe: RecipeSummary | null;
+  recipe: RecipeSummary;
   reactions: ReactionSummary;
   commentCount: number;
 }
@@ -43,19 +43,17 @@ export function toPostResponse(row: PostCardRow, reactions: ReactionSummary): Po
     createdAt: row.createdAt,
     author: row.owner,
     images: row.images.map((image) => ({ id: image.id, url: publicUrlFor(image.storageKey) })),
-    recipe: row.recipe
-      ? {
-          id: row.recipe.id,
-          title: row.recipe.title,
-          nutrition: recipeNutrition(
-            row.recipe.ingredients.map((ingredient) => ({
-              quantity: ingredient.quantity,
-              unit: ingredient.unit,
-              product: ingredient.product,
-            })),
-          ),
-        }
-      : null,
+    recipe: {
+      id: row.recipe.id,
+      title: row.recipe.title,
+      nutrition: recipeNutrition(
+        row.recipe.ingredients.map((ingredient) => ({
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          product: ingredient.product,
+        })),
+      ),
+    },
     reactions,
     commentCount: row._count.comments,
   };
@@ -64,7 +62,7 @@ export function toPostResponse(row: PostCardRow, reactions: ReactionSummary): Po
 export interface CreatePostInput {
   ownerId: string;
   caption?: string;
-  recipeId?: string;
+  recipeId: string;
   imageKeys: string[];
 }
 
@@ -80,10 +78,8 @@ export function validateImageKeyOwnership(imageKeys: string[], ownerId: string):
 export async function createPost(input: CreatePostInput): Promise<PostResponse> {
   validateImageKeyOwnership(input.imageKeys, input.ownerId);
 
-  if (input.recipeId) {
-    const exists = await postRepository.recipeExists(input.recipeId);
-    if (!exists) throw new NotFoundError('Recipe not found');
-  }
+  const recipeFound = await postRepository.recipeExists(input.recipeId);
+  if (!recipeFound) throw new NotFoundError('Recipe not found');
 
   const row = await postRepository.createPost({
     ownerId: input.ownerId,
