@@ -4,7 +4,7 @@ import { toPage, type Page } from '../lib/pagination';
 import * as collectionRepository from '../repositories/collection.repository';
 import type { CollectionSummary } from '../repositories/collection.repository';
 import * as cookbookRepository from '../repositories/cookbook.repository';
-import type { SavedRecipeSummary } from '../repositories/cookbook.repository';
+import { toSavedRecipeCard, type SavedRecipeCard } from './cookbook.service';
 
 /// Loads the collection and asserts the caller owns it. Every collection
 /// endpoint runs this first, so ownership is never assumed from the URL.
@@ -71,8 +71,9 @@ export async function listRecipes(
   userId: string,
   cursor: string | undefined,
   limit: number,
-): Promise<Page<SavedRecipeSummary>> {
+): Promise<Page<SavedRecipeCard>> {
   await assertOwnership(collectionId, userId);
   const rows = await collectionRepository.listRecipes(collectionId, cursor, limit);
-  return toPage(rows, limit);
+  const page = toPage(rows, limit);
+  return { items: page.items.map(toSavedRecipeCard), nextCursor: page.nextCursor };
 }

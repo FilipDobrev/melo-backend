@@ -1,5 +1,5 @@
 import * as cookbookService from '../services/cookbook.service';
-import type { SavedRecipeSummary } from '../repositories/cookbook.repository';
+import type { SavedRecipeCard } from '../services/cookbook.service';
 import type { ListCookbookQuery } from '../dto/cookbook.dto';
 import type { Page } from '../lib/pagination';
 import type { AuthorizedRequest, RecipeIdParams, TypedResponse } from '../types/http';
@@ -24,7 +24,7 @@ export async function remove(
 
 export async function listCookbook(
   req: AuthorizedRequest<void, ListCookbookQuery>,
-  res: TypedResponse<Page<SavedRecipeSummary>>,
+  res: TypedResponse<Page<SavedRecipeCard>>,
 ): Promise<void> {
   const { cursor, limit, categorySlugs } = req.query;
   const page = await cookbookService.listCookbook(req.userId, cursor, limit, categorySlugs);

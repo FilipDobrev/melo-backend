@@ -1,7 +1,9 @@
-import type { CreateRecipeInput, ListRecipesQuery, UpdateRecipeInput } from '../dto/recipe.dto';
+import type { CreateRecipeInput, CreateRecipeUploadUrlInput, ListRecipesQuery, UpdateRecipeInput } from '../dto/recipe.dto';
 import type { CursorPagination, Page } from '../lib/pagination';
 import * as recipeService from '../services/recipe.service';
 import type { RecipeDetail, RecipeSummary } from '../services/recipe.service';
+import { listRecipeImagePresets, type RecipeImagePresetDto } from '../services/recipeImage';
+import type { CreateUploadUrlResult } from '../services/storage.service';
 import type {
   AuthorizedRequest,
   RecipeIdParams,
@@ -48,6 +50,25 @@ export async function deleteRecipe(
 ): Promise<void> {
   await recipeService.deleteRecipe(req.params.recipeId, req.userId);
   res.status(204).send();
+}
+
+export async function createUploadUrl(
+  req: AuthorizedRequest<CreateRecipeUploadUrlInput>,
+  res: TypedResponse<CreateUploadUrlResult>,
+): Promise<void> {
+  const result = await recipeService.createRecipeImageUploadUrl(
+    req.userId,
+    req.body.contentType,
+    req.body.contentLength,
+  );
+  res.status(200).json(result);
+}
+
+export async function listImagePresets(
+  _req: UnauthorizedRequest,
+  res: TypedResponse<RecipeImagePresetDto[]>,
+): Promise<void> {
+  res.status(200).json(listRecipeImagePresets());
 }
 
 export async function listRecipesByUser(

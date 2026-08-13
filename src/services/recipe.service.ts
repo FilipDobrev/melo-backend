@@ -9,6 +9,9 @@ import * as productRepository from '../repositories/product.repository';
 import * as recipeRepository from '../repositories/recipe.repository';
 import type { RecipeDetailRow, RecipeSummaryRow } from '../repositories/recipe.repository';
 import { recipeNutrition, type Nutrition } from './nutrition';
+import { resolveRecipeImageUrl, validateRecipeImageKey } from './recipeImage';
+import * as storageService from './storage.service';
+import type { CreateUploadUrlResult } from './storage.service';
 
 export interface RecipeOwnerSummary {
   id: string;
@@ -29,6 +32,7 @@ export interface RecipeSummary {
   updatedAt: Date;
   owner: RecipeOwnerSummary;
   categories: RecipeCategorySummary[];
+  imageUrl: string;
 }
 
 export interface RecipeDetail extends RecipeSummary {
@@ -84,6 +88,7 @@ export function toRecipeDetail(recipe: RecipeDetailRow): RecipeDetail {
     })),
     nutrition,
     isSaved: recipe.savedBy.length > 0,
+    imageUrl: resolveRecipeImageUrl(recipe.imageKey),
   };
 }
 
@@ -99,6 +104,7 @@ export function toRecipeSummary(recipe: RecipeSummaryRow): RecipeSummary {
       slug: assignment.category.slug,
       name: assignment.category.name,
     })),
+    imageUrl: resolveRecipeImageUrl(recipe.imageKey),
   };
 }
 
@@ -136,12 +142,22 @@ export async function getRecipeDetail(recipeId: string, viewerId: string | undef
 /// newly created recipe always shows up in its author's cookbook - the
 /// author can still unsave (and re-save) it afterwards like anyone else.
 export async function createRecipe(ownerId: string, input: CreateRecipeInput): Promise<RecipeDetail> {
+  if (input.imageKey !== undefined) {
+    validateRecipeImageKey(input.imageKey, ownerId);
+  }
+
   return prisma.$transaction(async (tx) => {
     const categoryIds = await resolveCategoryIds(input.categorySlugs, tx);
     await assertProductsExist(input.ingredients, tx);
 
     const recipe = await recipeRepository.createRecipe(
-      { ownerId, title: input.title, description: input.description, instructions: input.instructions },
+      {
+        ownerId,
+        title: input.title,
+        description: input.description,
+        instructions: input.instructions,
+        imageKey: input.imageKey,
+      },
       tx,
     );
     await recipeRepository.createRecipeIngredients(recipe.id, input.ingredients, tx);
@@ -159,6 +175,10 @@ export async function updateRecipe(recipeId: string, viewerId: string, input: Up
   if (!existing) throw new NotFoundError('Recipe not found');
   if (existing.ownerId !== viewerId) throw new ForbiddenError();
 
+  if (input.imageKey !== undefined) {
+    validateRecipeImageKey(input.imageKey, viewerId);
+  }
+
   return prisma.$transaction(async (tx) => {
     if (input.ingredients) {
       await assertProductsExist(input.ingredients, tx);
@@ -172,9 +192,9 @@ export async function updateRecipe(recipeId: string, viewerId: string, input: Up
       await recipeRepository.createRecipeCategories(recipeId, categoryIds, tx);
     }
 
-    const { title, description, instructions } = input;
-    if (title !== undefined || description !== undefined || instructions !== undefined) {
-      await recipeRepository.updateRecipeFields(recipeId, { title, description, instructions }, tx);
+    const { title, description, instructions, imageKey } = input;
+    if (title !== undefined || description !== undefined || instructions !== undefined || imageKey !== undefined) {
+      await recipeRepository.updateRecipeFields(recipeId, { title, description, instructions, imageKey }, tx);
     }
 
     const detail = await recipeRepository.findRecipeDetail(recipeId, viewerId, tx);
@@ -188,6 +208,14 @@ export async function deleteRecipe(recipeId: string, viewerId: string): Promise<
   if (!existing) throw new NotFoundError('Recipe not found');
   if (existing.ownerId !== viewerId) throw new ForbiddenError();
   await recipeRepository.deleteRecipe(recipeId);
+}
+
+export async function createRecipeImageUploadUrl(
+  userId: string,
+  contentType: string,
+  contentLength: number,
+): Promise<CreateUploadUrlResult> {
+  return storageService.createUploadUrl({ userId, contentType, contentLength, folder: 'recipes' });
 }
 
 async function resolveCategoryIds(slugs: string[], db: Db): Promise<string[]> {

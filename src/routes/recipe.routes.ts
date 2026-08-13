@@ -1,10 +1,13 @@
 import { Router } from 'express';
+import type { ParamsDictionary } from 'express-serve-static-core';
 import * as recipeController from '../controllers/recipe.controller';
 import {
   createRecipeSchema,
+  createRecipeUploadUrlSchema,
   listRecipesQuerySchema,
   recipeIdParamsSchema,
   updateRecipeSchema,
+  type CreateRecipeUploadUrlInput,
 } from '../dto/recipe.dto';
 import { userIdParamsSchema } from '../dto/user.dto';
 import { cursorPaginationSchema } from '../lib/pagination';
@@ -23,6 +26,19 @@ recipeRouter.get(
   validate({ query: listRecipesQuerySchema }),
   optionalAuth,
   asyncHandler(recipeController.listRecipes),
+);
+
+/// Literal paths must be registered before `/:recipeId`, or express would
+/// swallow them as a recipe id lookup instead.
+recipeRouter.post<ParamsDictionary, unknown, CreateRecipeUploadUrlInput>(
+  '/images/upload-url',
+  validate({ body: createRecipeUploadUrlSchema }),
+  ...authed(recipeController.createUploadUrl),
+);
+
+recipeRouter.get(
+  '/image-presets',
+  asyncHandler(recipeController.listImagePresets),
 );
 
 recipeRouter.get(

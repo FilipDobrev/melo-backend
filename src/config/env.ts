@@ -23,6 +23,10 @@ const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().min(1),
   S3_SECRET_ACCESS_KEY: z.string().min(1),
   S3_PUBLIC_BASE_URL: z.string().url().optional(),
+
+  /// Base URL for preset recipe images. Must be set to the machine's LAN
+  /// address or public origin for a real device to load preset images.
+  API_PUBLIC_BASE_URL: z.string().url().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

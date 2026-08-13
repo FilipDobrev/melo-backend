@@ -45,14 +45,26 @@ Paginated query params: `?cursor=<uuid>&limit=<1..50>` (default 20).
 ## Recipes
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| POST | `/recipes` | yes | `{ title, description, instructions, ingredients: [{ productId, quantity, unit }], categorySlugs: string[] }`. Also saves the recipe to the author's own cookbook |
+| POST | `/recipes` | yes | `{ title, description, instructions, ingredients: [{ productId, quantity, unit }], categorySlugs: string[], imageKey? }`. Also saves the recipe to the author's own cookbook |
 | GET | `/recipes?search=&categorySlugs=a,b&sort=` | optional | paginated. `sort` = `newest` (default), `oldest`, `popular` (most cookbook saves) |
 | GET | `/recipes/:recipeId` | optional | full detail + computed `nutrition` + `isSaved` |
-| PATCH | `/recipes/:recipeId` | yes, owner | any subset of create fields; ingredients replace wholesale in a transaction |
+| PATCH | `/recipes/:recipeId` | yes, owner | any subset of create fields (incl. `imageKey`); ingredients replace wholesale in a transaction |
 | DELETE | `/recipes/:recipeId` | yes, owner | 204 |
 | POST | `/recipes/:recipeId/save` | yes | save to cookbook, 409 on duplicate |
 | DELETE | `/recipes/:recipeId/save` | yes | 204 |
 | GET | `/users/me/cookbook?categorySlugs=` | yes | paginated saved recipes |
+| POST | `/recipes/images/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }` presigned PUT, key under `recipes/<userId>/`. Same contract as `/posts/images/upload-url` |
+| GET | `/recipes/image-presets` | no | `[{ slug, label, url }]`, the built-in image choices |
+
+Every recipe has a picture. `imageKey` (create/update body) accepts either a
+known preset in the form `preset:<slug>` (see `/recipes/image-presets` for
+the slug list) or a storage key returned by `/recipes/images/upload-url`,
+which must be under the caller's own `recipes/<userId>/` prefix - anything
+else is rejected with 400. Omitting `imageKey` (create) or leaving it out of
+a PATCH body leaves the recipe on its current image, defaulting to the
+`default` preset when none was ever set. Recipe responses (`RecipeSummary`,
+`RecipeDetail`, and the cookbook/collection recipe cards) always carry a
+resolved `imageUrl`; the raw `imageKey` is never returned.
 
 ## Collections
 
