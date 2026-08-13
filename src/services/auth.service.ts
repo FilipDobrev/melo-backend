@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import { env } from '../config/env';
 import { prisma, type Db } from '../lib/prisma';
+import { logger } from '../lib/logger';
 import { ConflictError, UnauthenticatedError } from '../lib/errors';
 import * as userRepository from '../repositories/user.repository';
 import * as refreshTokenRepository from '../repositories/refreshToken.repository';
@@ -65,7 +66,23 @@ export async function refresh(refreshToken: string): Promise<RefreshResult> {
   const existing = await refreshTokenRepository.findByTokenHash(tokenHash);
 
   const invalidTokenError = new UnauthenticatedError('Invalid or expired refresh token');
-  if (!existing || existing.revokedAt || existing.expiresAt < new Date()) {
+  if (!existing) {
+    throw invalidTokenError;
+  }
+
+  // A revoked token being presented again is not an ordinary error: tokens
+  // are only ever revoked by a prior refresh or a logout, so this token must
+  // have leaked and been replayed. Kill the whole session family so both the
+  // attacker and the legitimate user are forced to log in again. An expired
+  // (but never revoked) token carries no such signal - it is just a stale
+  // token - so it is rejected the ordinary way.
+  if (existing.revokedAt) {
+    await refreshTokenRepository.revokeAllActiveForUser(existing.userId);
+    logger.warn({ userId: existing.userId }, 'refresh token reuse detected; revoked all active sessions');
+    throw invalidTokenError;
+  }
+
+  if (existing.expiresAt < new Date()) {
     throw invalidTokenError;
   }
 

@@ -2,8 +2,32 @@
 
 Base path: `/api/v1`. JSON only. Auth via `Authorization: Bearer <accessToken>`.
 
-Error shape: `{ "error": { "code": string, "message": string, "details"?: unknown } }`
+Error shape: `{ "error": { "code": string, "message": string, "details"?: unknown, "requestId"?: string } }`
 Codes: `BAD_REQUEST` 400, `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `CONFLICT` 409, `VALIDATION_FAILED` 422, `INTERNAL` 500.
+`requestId` is only present on 5xx responses (4xx is the caller's own fault, nothing to correlate).
+It also matches the `X-Request-Id` header on every response, and the id in the server's log line
+for that request - hand it to support to find the exact log entry.
+
+## Health
+
+Not under `/api/v1`, and not rate limited.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/health` | Liveness. 200 `{ "status": "ok" }` as long as the process is up. Never touches the database. |
+| GET | `/health/ready` | Readiness. Runs `SELECT 1` against Postgres. 200 `{ "status": "ok" }`, or 503 `{ "status": "error", "message": string }` if the database is unreachable. |
+
+Point container/orchestrator liveness probes at `/health` and readiness probes at `/health/ready`.
+A database blip should make an instance temporarily unready, not restart it.
+
+## Rate limiting
+
+All limiters return 429 with the same error envelope, `code: "TOO_MANY_REQUESTS"`.
+
+- Whole API (`/api/v1/**`): 300 requests/minute per IP.
+- `/auth/register`, `/auth/login`: 10 attempts per 15 minutes per IP (configurable, see `.env.example`).
+- `POST /posts/images/upload-url`, `POST /recipes/images/upload-url`: 30 requests per 5 minutes per IP -
+  tighter because each call mints write access to object storage.
 
 Paginated shape: `{ "items": T[], "nextCursor": string | null }`.
 Paginated query params: `?cursor=<uuid>&limit=<1..50>` (default 20).

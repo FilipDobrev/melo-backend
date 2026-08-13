@@ -155,20 +155,22 @@ describe('auth.service', () => {
       await expect(authService.refresh('missing-token')).rejects.toMatchObject({ status: 401 });
     });
 
-    it('rejects when the token was already revoked', async () => {
+    it('rejects reuse of a revoked token and revokes the whole session family', async () => {
       vi.mocked(refreshTokenRepository.findByTokenHash).mockResolvedValue(
         makeRefreshToken({ revokedAt: new Date() }),
       );
 
       await expect(authService.refresh('revoked-token')).rejects.toMatchObject({ status: 401 });
+      expect(refreshTokenRepository.revokeAllActiveForUser).toHaveBeenCalledWith('user-1');
     });
 
-    it('rejects when the token is expired', async () => {
+    it('rejects an expired-but-never-revoked token without touching other sessions', async () => {
       vi.mocked(refreshTokenRepository.findByTokenHash).mockResolvedValue(
         makeRefreshToken({ expiresAt: new Date('2000-01-01T00:00:00.000Z') }),
       );
 
       await expect(authService.refresh('expired-token')).rejects.toMatchObject({ status: 401 });
+      expect(refreshTokenRepository.revokeAllActiveForUser).not.toHaveBeenCalled();
     });
 
     it('revokes the old token and issues a new one on success', async () => {

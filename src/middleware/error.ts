@@ -4,7 +4,7 @@ import { AppError } from '../lib/errors';
 import { logger } from '../lib/logger';
 
 interface ErrorBody {
-  error: { code: string; message: string; details?: unknown };
+  error: { code: string; message: string; details?: unknown; requestId?: string };
 }
 
 export function notFoundHandler(_req: Request, res: Response): void {
@@ -20,14 +20,19 @@ export function errorHandler(
 ): void {
   const mapped = mapError(err);
 
+  const body: ErrorBody = { error: { code: mapped.code, message: mapped.message } };
+  if (mapped.details !== undefined) body.error.details = mapped.details;
+
   if (mapped.status >= 500) {
+    // 4xx is the caller's own fault - no correlation id needed. 5xx is where
+    // a user needs something to hand support, and it must be the exact id
+    // pino-http put on this request's log line.
+    body.error.requestId = String(req.id);
     logger.error({ err, path: req.path, method: req.method }, 'Unhandled request error');
   } else {
     logger.debug({ code: mapped.code, path: req.path }, 'Request rejected');
   }
 
-  const body: ErrorBody = { error: { code: mapped.code, message: mapped.message } };
-  if (mapped.details !== undefined) body.error.details = mapped.details;
   res.status(mapped.status).json(body);
 }
 
