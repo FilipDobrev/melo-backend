@@ -4,6 +4,7 @@ import { BadRequestError, ForbiddenError, NotFoundError } from '../lib/errors';
 import { type CursorPagination, type Page, toPage } from '../lib/pagination';
 import { prisma, type Db } from '../lib/prisma';
 import * as categoryRepository from '../repositories/category.repository';
+import * as cookbookRepository from '../repositories/cookbook.repository';
 import * as productRepository from '../repositories/product.repository';
 import * as recipeRepository from '../repositories/recipe.repository';
 import type { RecipeDetailRow, RecipeSummaryRow } from '../repositories/recipe.repository';
@@ -131,6 +132,9 @@ export async function getRecipeDetail(recipeId: string, viewerId: string | undef
 
 /// Verifies every referenced productId/categorySlug exists, then inserts
 /// the recipe, its ingredients, and its category assignments together.
+/// The author's own cookbook save is created in the same transaction, so a
+/// newly created recipe always shows up in its author's cookbook - the
+/// author can still unsave (and re-save) it afterwards like anyone else.
 export async function createRecipe(ownerId: string, input: CreateRecipeInput): Promise<RecipeDetail> {
   return prisma.$transaction(async (tx) => {
     const categoryIds = await resolveCategoryIds(input.categorySlugs, tx);
@@ -142,6 +146,7 @@ export async function createRecipe(ownerId: string, input: CreateRecipeInput): P
     );
     await recipeRepository.createRecipeIngredients(recipe.id, input.ingredients, tx);
     await recipeRepository.createRecipeCategories(recipe.id, categoryIds, tx);
+    await cookbookRepository.ensureSave(ownerId, recipe.id, tx);
 
     const detail = await recipeRepository.findRecipeDetail(recipe.id, ownerId, tx);
     if (!detail) throw new Error('Recipe vanished inside its own creation transaction');

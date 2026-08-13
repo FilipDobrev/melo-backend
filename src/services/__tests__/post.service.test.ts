@@ -60,7 +60,7 @@ describe('validateImageKeyOwnership', () => {
 describe('toPostResponse', () => {
   it('maps author, images and comment count', () => {
     const row = buildRow();
-    const response = toPostResponse(row, EMPTY_REACTION_SUMMARY);
+    const response = toPostResponse(row, EMPTY_REACTION_SUMMARY, false);
 
     expect(response.author).toEqual({ id: 'owner-1', username: 'chef', profileImage: null });
     expect(response.images).toEqual([{ id: 'img-1', url: expect.stringContaining('posts/owner-1/a.jpg') }]);
@@ -90,19 +90,26 @@ describe('toPostResponse', () => {
       },
     });
 
-    const response = toPostResponse(row, EMPTY_REACTION_SUMMARY);
+    const response = toPostResponse(row, EMPTY_REACTION_SUMMARY, false);
 
     expect(response.recipe).toEqual({
       id: 'recipe-1',
       title: 'Omelette',
       nutrition: { calories: 300, protein: 26, carbs: 2, fat: 22 },
+      isSaved: false,
     });
   });
 
   it('passes the reaction summary through unchanged', () => {
     const reactions: ReactionSummary = { total: 3, byEmoji: { '❤️': 2, '😂': 1 }, mine: '❤️' };
-    const response = toPostResponse(buildRow(), reactions);
+    const response = toPostResponse(buildRow(), reactions, false);
 
     expect(response.reactions).toEqual(reactions);
+  });
+
+  it('reflects the isSaved flag passed in', () => {
+    const response = toPostResponse(buildRow(), EMPTY_REACTION_SUMMARY, true);
+
+    expect(response.recipe.isSaved).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import type { CursorPagination, Page } from '../lib/pagination';
 import { toPage } from '../lib/pagination';
 import * as postRepository from '../repositories/post.repository';
 import type { PostCardRow } from '../repositories/post.repository';
+import * as cookbookRepository from '../repositories/cookbook.repository';
 import * as reactionRepository from '../repositories/reaction.repository';
 import { EMPTY_REACTION_SUMMARY, type ReactionSummary } from '../repositories/reaction.repository';
 import { publicUrlFor } from './storage.service';
@@ -23,6 +24,7 @@ export interface RecipeSummary {
   id: string;
   title: string;
   nutrition: Nutrition;
+  isSaved: boolean;
 }
 
 export interface PostResponse {
@@ -36,7 +38,11 @@ export interface PostResponse {
   commentCount: number;
 }
 
-export function toPostResponse(row: PostCardRow, reactions: ReactionSummary): PostResponse {
+export function toPostResponse(
+  row: PostCardRow,
+  reactions: ReactionSummary,
+  isSaved: boolean,
+): PostResponse {
   return {
     id: row.id,
     caption: row.caption,
@@ -53,6 +59,7 @@ export function toPostResponse(row: PostCardRow, reactions: ReactionSummary): Po
           product: ingredient.product,
         })),
       ),
+      isSaved,
     },
     reactions,
     commentCount: row._count.comments,
@@ -88,15 +95,26 @@ export async function createPost(input: CreatePostInput): Promise<PostResponse> 
     images: input.imageKeys.map((storageKey, position) => ({ storageKey, position })),
   });
 
-  return toPostResponse(row, EMPTY_REACTION_SUMMARY);
+  // The owner may have saved this recipe (to their own cookbook) before
+  // posting it, so this is resolved via the same bulk lookup rather than
+  // assumed false.
+  const savedRecipeIds = await cookbookRepository.findSavedRecipeIds(input.ownerId, [row.recipe.id]);
+  return toPostResponse(row, EMPTY_REACTION_SUMMARY, savedRecipeIds.has(row.recipe.id));
 }
 
 export async function getPostDetail(postId: string, viewerId: string | null): Promise<PostResponse> {
   const row = await postRepository.findDetailById(postId);
   if (!row) throw new NotFoundError('Post not found');
 
-  const summaries = await reactionRepository.summariesForPosts([postId], viewerId);
-  return toPostResponse(row, summaries.get(postId) ?? EMPTY_REACTION_SUMMARY);
+  const [summaries, savedRecipeIds] = await Promise.all([
+    reactionRepository.summariesForPosts([postId], viewerId),
+    cookbookRepository.findSavedRecipeIds(viewerId, [row.recipe.id]),
+  ]);
+  return toPostResponse(
+    row,
+    summaries.get(postId) ?? EMPTY_REACTION_SUMMARY,
+    savedRecipeIds.has(row.recipe.id),
+  );
 }
 
 export async function deletePost(postId: string, userId: string): Promise<void> {
@@ -124,11 +142,23 @@ export async function attachReactions(
   rows: PostCardRow[],
   viewerId: string | null,
 ): Promise<PostResponse[]> {
-  const summaries = await reactionRepository.summariesForPosts(
-    rows.map((row) => row.id),
-    viewerId,
+  const [summaries, savedRecipeIds] = await Promise.all([
+    reactionRepository.summariesForPosts(
+      rows.map((row) => row.id),
+      viewerId,
+    ),
+    cookbookRepository.findSavedRecipeIds(
+      viewerId,
+      rows.map((row) => row.recipe.id),
+    ),
+  ]);
+  return rows.map((row) =>
+    toPostResponse(
+      row,
+      summaries.get(row.id) ?? EMPTY_REACTION_SUMMARY,
+      savedRecipeIds.has(row.recipe.id),
+    ),
   );
-  return rows.map((row) => toPostResponse(row, summaries.get(row.id) ?? EMPTY_REACTION_SUMMARY));
 }
 
 export async function listUserPosts(
