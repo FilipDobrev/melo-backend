@@ -29,9 +29,41 @@ Health check: `GET /health`.
 | `npm run dev` | Watch-mode dev server |
 | `npm run build` / `npm start` | Compile to `dist/` and run |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest unit tests |
+| `npm test` | Vitest unit tests (pure functions, no database) |
+| `npm run test:integration` | Vitest integration tests (real Postgres + supertest, see below) |
 | `npm run prisma:migrate` | Apply a dev migration |
 | `npm run prisma:seed` | Idempotent seed of categories and products |
+
+## Integration tests
+
+`tests/integration/` boots the real Express app (`createApp()`) with supertest
+against a real Postgres database - `/api/v1/...` requests go through routing,
+validation, auth and Prisma exactly as they would in production. This is
+where authorization (who can edit/delete whose data) and cross-cutting
+contracts (auth token rotation, cursor pagination, nutrition totals) are
+verified; `npm test` only covers pure functions.
+
+Setup:
+
+1. Add `TEST_DATABASE_URL` to your `.env` (see `.env.example`). It must point
+   at a **different database** than `DATABASE_URL` - the suite truncates
+   every table between tests, so pointing it at your dev database would wipe
+   it.
+2. `docker compose up -d` (same Postgres container, different database).
+3. `npm run test:integration` - this first runs `prisma db push` against
+   `TEST_DATABASE_URL` (creating the `melo_test` database and syncing the
+   schema if needed, via the `pretest:integration` script), then runs the
+   suite.
+
+The table list used for per-test truncation (`tests/integration/global-hooks.ts`)
+is read from Prisma's own DMMF metadata rather than hand-written, so a newly
+added model is truncated automatically instead of silently leaking state
+between tests.
+
+Test data factories (register a user, create a product/recipe/post/collection)
+live in `tests/integration/helpers/factories.ts` - plain functions that call
+the real HTTP endpoints, so a broken endpoint fails the factory itself
+instead of silently seeding data the API could never have produced.
 
 ## Architecture
 

@@ -34,7 +34,6 @@ export const RECIPE_IMAGE_PRESETS: RecipeImagePreset[] = [
   { slug: 'spread', label: 'Spread', filename: 'spread.svg' },
 ];
 
-const DEFAULT_PRESET_SLUG = 'default';
 const PRESET_PREFIX = 'preset:';
 
 const presetsBySlug = new Map(RECIPE_IMAGE_PRESETS.map((preset) => [preset.slug, preset]));

@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { z, ZodError, type ZodTypeAny } from 'zod';
+import type { ZodTypeAny } from 'zod';
+import { type z as ZodType, ZodError } from 'zod';
 import { ValidationError } from '../lib/errors';
 
 export interface RequestSchemas {
@@ -35,4 +36,4 @@ function formatZodIssues(error: ZodError): Array<{ path: string; message: string
 }
 
 /// Helper for controllers that need the parsed type of a schema.
-export type Infer<T extends ZodTypeAny> = z.infer<T>;
+export type Infer<T extends ZodTypeAny> = ZodType.infer<T>;
