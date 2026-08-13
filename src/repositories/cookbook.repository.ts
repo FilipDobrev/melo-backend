@@ -34,6 +34,23 @@ export async function recipeExists(recipeId: string, db: Db = prisma): Promise<b
   return recipe !== null;
 }
 
+/// Bulk membership check used to attach `isSaved` to post payloads without
+/// a per-post query. Anonymous viewers (userId null on optional-auth paths)
+/// never have saves, so we skip the database entirely for them.
+export async function findSavedRecipeIds(
+  userId: string | null,
+  recipeIds: string[],
+  db: Db = prisma,
+): Promise<Set<string>> {
+  if (!userId || recipeIds.length === 0) return new Set();
+
+  const rows = await db.cookbookSave.findMany({
+    where: {userId, recipeId: {in: recipeIds}},
+    select: {recipeId: true},
+  });
+  return new Set(rows.map((row) => row.recipeId));
+}
+
 /// Relies on `@@unique([userId, recipeId])`; a duplicate save raises P2002,
 /// which the error middleware maps to 409. Only references the recipe, it
 /// never copies its data or changes ownership.

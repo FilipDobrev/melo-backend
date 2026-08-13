@@ -45,7 +45,7 @@ Paginated query params: `?cursor=<uuid>&limit=<1..50>` (default 20).
 ## Recipes
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| POST | `/recipes` | yes | `{ title, description, instructions, ingredients: [{ productId, quantity, unit }], categorySlugs: string[] }` |
+| POST | `/recipes` | yes | `{ title, description, instructions, ingredients: [{ productId, quantity, unit }], categorySlugs: string[] }`. Also saves the recipe to the author's own cookbook |
 | GET | `/recipes?search=&categorySlugs=a,b&sort=` | optional | paginated. `sort` = `newest` (default), `oldest`, `popular` (most cookbook saves) |
 | GET | `/recipes/:recipeId` | optional | full detail + computed `nutrition` + `isSaved` |
 | PATCH | `/recipes/:recipeId` | yes, owner | any subset of create fields; ingredients replace wholesale in a transaction |
@@ -97,4 +97,4 @@ a 403 that the API never sees. Measure the file, do not estimate.
 | --- | --- | --- | --- |
 | GET | `/feed` | yes | paginated, posts from followed users, newest first |
 
-Post payload includes: `id, caption, createdAt, author {id, username, profileImage}, images [{id, url}], recipe {id, title, nutrition}, reactions { total, byEmoji: Record<string, number>, mine: string | null }, commentCount`.
+Post payload includes: `id, caption, createdAt, author {id, username, profileImage}, images [{id, url}], recipe {id, title, nutrition, isSaved}, reactions { total, byEmoji: Record<string, number>, mine: string | null }, commentCount`.
