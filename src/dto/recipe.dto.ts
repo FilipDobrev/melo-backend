@@ -2,6 +2,12 @@ import { Unit } from '@prisma/client';
 import { z } from 'zod';
 import { cursorPaginationSchema } from '../lib/pagination';
 
+export const createRecipeUploadUrlSchema = z.object({
+  contentType: z.string().trim().min(1),
+  contentLength: z.coerce.number().int().positive(),
+});
+export type CreateRecipeUploadUrlInput = z.infer<typeof createRecipeUploadUrlSchema>;
+
 const categorySlugSchema = z.string().trim().min(1).max(50);
 
 export const ingredientInputSchema = z.object({
@@ -11,12 +17,18 @@ export const ingredientInputSchema = z.object({
 });
 export type IngredientInput = z.infer<typeof ingredientInputSchema>;
 
+// Actual acceptance (known preset vs. caller's own upload prefix) happens in
+// recipeImage.ts's validateRecipeImageKey, which needs the caller's id and
+// so cannot run at the schema layer. This only enforces a non-empty string.
+const imageKeySchema = z.string().trim().min(1).max(500);
+
 export const createRecipeSchema = z.object({
   title: z.string().trim().min(1).max(150),
   description: z.string().trim().min(1).max(2000),
   instructions: z.string().trim().min(1).max(10000),
   ingredients: z.array(ingredientInputSchema).min(1),
   categorySlugs: z.array(categorySlugSchema).default([]),
+  imageKey: imageKeySchema.optional(),
 });
 export type CreateRecipeInput = z.infer<typeof createRecipeSchema>;
 
@@ -29,6 +41,7 @@ export const updateRecipeSchema = z.object({
   instructions: z.string().trim().min(1).max(10000).optional(),
   ingredients: z.array(ingredientInputSchema).min(1).optional(),
   categorySlugs: z.array(categorySlugSchema).optional(),
+  imageKey: imageKeySchema.optional(),
 });
 export type UpdateRecipeInput = z.infer<typeof updateRecipeSchema>;
 

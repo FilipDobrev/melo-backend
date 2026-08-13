@@ -1,3 +1,4 @@
+import path from 'node:path';
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
@@ -23,6 +24,16 @@ export function createApp(): express.Express {
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
+
+  // Preset recipe images are app assets shipped with the API, not user
+  // content, so they are served straight off disk rather than through S3.
+  app.use(
+    '/static/recipe-presets',
+    express.static(path.join(__dirname, '..', 'public', 'recipe-presets'), {
+      maxAge: '1d',
+      immutable: false,
+    }),
+  );
 
   app.use('/api/v1', apiRouter);
 

@@ -33,6 +33,10 @@ export interface CreateUploadUrlParams {
   userId: string;
   contentType: string;
   contentLength: number;
+  /// Top-level storage folder the key is issued under, e.g. `posts` or
+  /// `recipes`. Callers validate ownership later by checking the resulting
+  /// key starts with `<folder>/<userId>/`, so this must match that check.
+  folder: string;
 }
 
 export interface CreateUploadUrlResult {
@@ -46,6 +50,7 @@ export async function createUploadUrl({
   userId,
   contentType,
   contentLength,
+  folder,
 }: CreateUploadUrlParams): Promise<CreateUploadUrlResult> {
   const extension = ALLOWED_CONTENT_TYPES[contentType];
   if (!extension) {
@@ -55,7 +60,7 @@ export async function createUploadUrl({
     throw new BadRequestError('Image exceeds the 10 MB upload limit');
   }
 
-  const storageKey = `posts/${userId}/${crypto.randomUUID()}.${extension}`;
+  const storageKey = `${folder}/${userId}/${crypto.randomUUID()}.${extension}`;
 
   const uploadUrl = await getSignedUrl(
     s3Client,

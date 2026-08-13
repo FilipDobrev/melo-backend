@@ -1,6 +1,6 @@
 import * as collectionService from '../services/collection.service';
 import type { CollectionSummary } from '../repositories/collection.repository';
-import type { SavedRecipeSummary } from '../repositories/cookbook.repository';
+import type { SavedRecipeCard } from '../services/cookbook.service';
 import type {
   AddCollectionRecipeInput,
   CreateCollectionInput,
@@ -53,7 +53,7 @@ export async function remove(
 
 export async function listRecipes(
   req: AuthorizedRequest<void, ListCollectionRecipesQuery, CollectionIdParams>,
-  res: TypedResponse<Page<SavedRecipeSummary>>,
+  res: TypedResponse<Page<SavedRecipeCard>>,
 ): Promise<void> {
   const { cursor, limit } = req.query;
   const page = await collectionService.listRecipes(req.params.collectionId, req.userId, cursor, limit);

@@ -85,6 +85,7 @@ const savedRecipeSelect = {
   title: true,
   description: true,
   createdAt: true,
+  imageKey: true,
   owner: { select: { id: true, username: true, profileImage: true } },
   categories: { select: { category: { select: { slug: true, name: true } } } },
 } as const;

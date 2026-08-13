@@ -24,6 +24,7 @@ export async function createUploadUrl(
     userId: req.userId,
     contentType: req.body.contentType,
     contentLength: req.body.contentLength,
+    folder: 'posts',
   });
   res.status(200).json(result);
 }

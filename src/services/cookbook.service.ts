@@ -2,6 +2,18 @@ import { NotFoundError } from '../lib/errors';
 import { toPage, type Page } from '../lib/pagination';
 import * as cookbookRepository from '../repositories/cookbook.repository';
 import type { SavedRecipeSummary } from '../repositories/cookbook.repository';
+import { resolveRecipeImageUrl } from './recipeImage';
+
+/// The client only needs the resolved URL, never the raw storage
+/// convention, so `imageKey` is dropped in favor of `imageUrl` here.
+export interface SavedRecipeCard extends Omit<SavedRecipeSummary, 'imageKey'> {
+  imageUrl: string;
+}
+
+export function toSavedRecipeCard(recipe: SavedRecipeSummary): SavedRecipeCard {
+  const { imageKey, ...rest } = recipe;
+  return { ...rest, imageUrl: resolveRecipeImageUrl(imageKey) };
+}
 
 export async function saveRecipe(currentUserId: string, recipeId: string): Promise<void> {
   const exists = await cookbookRepository.recipeExists(recipeId);
@@ -23,7 +35,8 @@ export async function listCookbook(
   cursor: string | undefined,
   limit: number,
   categorySlugs: string[] | undefined,
-): Promise<Page<SavedRecipeSummary>> {
+): Promise<Page<SavedRecipeCard>> {
   const rows = await cookbookRepository.listSavedRecipes(currentUserId, cursor, limit, categorySlugs);
-  return toPage(rows, limit);
+  const page = toPage(rows, limit);
+  return { items: page.items.map(toSavedRecipeCard), nextCursor: page.nextCursor };
 }

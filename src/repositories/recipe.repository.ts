@@ -94,6 +94,7 @@ export interface CreateRecipeFields {
   title: string;
   description: string;
   instructions: string;
+  imageKey?: string;
 }
 
 export async function createRecipe(data: CreateRecipeFields, db: Db = prisma): Promise<Recipe> {
@@ -104,6 +105,7 @@ export interface UpdateRecipeFields {
   title?: string;
   description?: string;
   instructions?: string;
+  imageKey?: string;
 }
 
 export async function updateRecipeFields(id: string, data: UpdateRecipeFields, db: Db = prisma): Promise<void> {

@@ -1,5 +1,10 @@
 import { Unit } from '@prisma/client';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../config/env', () => ({
+  env: { PORT: 4000 },
+}));
+
 import type { RecipeDetailRow, RecipeSummaryRow } from '../../repositories/recipe.repository';
 import { findMissingCategorySlug, findMissingProductId, toRecipeDetail, toRecipeSummary } from '../recipe.service';
 
@@ -30,6 +35,7 @@ function buildRecipeDetail(overrides: Partial<RecipeDetailRow> = {}): RecipeDeta
     title: 'Grilled chicken and rice',
     description: 'A simple high-protein meal.',
     instructions: 'Grill the chicken. Cook the rice. Combine.',
+    imageKey: null,
     createdAt: now,
     updatedAt: now,
     owner: { id: 'owner-1', username: 'chef', profileImage: null },
@@ -120,6 +126,7 @@ describe('toRecipeSummary', () => {
       title: 'Grilled chicken and rice',
       description: 'A simple high-protein meal.',
       instructions: 'Grill the chicken. Cook the rice. Combine.',
+      imageKey: null,
       createdAt: now,
       updatedAt: now,
       owner: { id: 'owner-1', username: 'chef', profileImage: null },
@@ -135,6 +142,7 @@ describe('toRecipeSummary', () => {
       updatedAt: now,
       owner: { id: 'owner-1', username: 'chef', profileImage: null },
       categories: [{ slug: 'dinner', name: 'Dinner' }],
+      imageUrl: 'http://localhost:4000/static/recipe-presets/default.svg',
     });
   });
 });

@@ -99,6 +99,7 @@ model Recipe {
   title        String
   description  String
   instructions String
+  imageKey     String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
