@@ -48,6 +48,15 @@ const envSchema = z.object({
   /// production value; raise it locally so repeated test runs are not blocked.
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   AUTH_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
+  /// Backstop across the whole API - set well above anything a normal
+  /// client would ever hit, to blunt scripted abuse rather than shape
+  /// legitimate traffic.
+  GENERAL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+  GENERAL_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(1),
+  /// Presigned upload URLs mint temporary write access to object storage,
+  /// so this is deliberately far tighter than the general limiter.
+  UPLOAD_URL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
+  UPLOAD_URL_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
   CORS_ORIGINS: z.string().default('*'),
 
   S3_BUCKET: z.string().min(1),

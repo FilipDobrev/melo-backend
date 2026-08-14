@@ -23,12 +23,17 @@ A database blip should make an instance temporarily unready, not restart it.
 ## Rate limiting
 
 All limiters return 429 with the same error envelope, `code: "TOO_MANY_REQUESTS"`.
+Every limiter's window and ceiling is environment-configurable, see `.env.example`.
 
-- Whole API (`/api/v1/**`): 300 requests/minute per IP.
-- `/auth/register`, `/auth/login`: 10 attempts per 15 minutes per IP (configurable, see `.env.example`).
+- Whole API (`/api/v1/**`): 300 requests/minute per IP by default.
+- `/auth/register`, `/auth/login`: 10 attempts per 15 minutes per IP by default.
 - `POST /posts/images/upload-url`, `POST /recipes/images/upload-url`,
-  `POST /users/me/avatar/upload-url`: 30 requests per 5 minutes per IP - tighter
-  because each call mints write access to object storage.
+  `POST /users/me/avatar/upload-url`: 10 requests per 5 minutes per IP by default -
+  tighter because each call mints write access to object storage.
+
+**Note on testing**: The integration test suite sets its own higher ceilings (see `tests/integration/env.ts`)
+to accommodate many requests from localhost without triggering the limiter. Manual testing of the running app
+exercises the real production limits and confirms the limiter behaves correctly under realistic load.
 
 Paginated shape: `{ "items": T[], "nextCursor": string | null }`.
 Paginated query params: `?cursor=<uuid>&limit=<1..50>` (default 20).
@@ -168,6 +173,6 @@ check only runs when a key is attached, never on read.
 ## Feed
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| GET | `/feed` | yes | paginated, posts from followed users, newest first |
+| GET | `/feed` | yes | paginated, posts from followed users plus your own, newest first |
 
 Post payload includes: `id, caption, createdAt, author {id, username, profileImage}, images [{id, url}], recipe {id, title, nutrition, isSaved}, reactions { total, byEmoji: Record<string, number>, mine: string | null }, commentCount`.

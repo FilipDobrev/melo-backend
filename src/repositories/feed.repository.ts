@@ -8,15 +8,16 @@ export interface ListFeedParams {
   limit?: number;
 }
 
-/// Single query: posts authored by anyone the caller follows, newest first.
-/// The `owner.followers.some` filter is a semi-join on the Follow table, so
-/// this stays one query regardless of page size - no per-post lookups.
+/// Single query: posts authored by anyone the caller follows, plus the
+/// caller's own posts, newest first. The `owner.followers.some` filter is a
+/// semi-join on the Follow table, so this stays one query regardless of page
+/// size - no per-post lookups.
 export function listFeed(
   { followerId, cursor, limit = DEFAULT_PAGE_SIZE }: ListFeedParams,
   db: Db = prisma,
 ): Promise<PostCardRow[]> {
   return db.post.findMany({
-    where: { owner: { followers: { some: { followerId } } } },
+    where: { OR: [{ owner: { followers: { some: { followerId } } } }, { ownerId: followerId }] },
     select: POST_CARD_SELECT,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
