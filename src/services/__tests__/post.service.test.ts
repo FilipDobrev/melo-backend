@@ -63,7 +63,9 @@ describe('toPostResponse', () => {
     const response = toPostResponse(row, EMPTY_REACTION_SUMMARY, false);
 
     expect(response.author).toEqual({ id: 'owner-1', username: 'chef', profileImage: null });
-    expect(response.images).toEqual([{ id: 'img-1', url: expect.stringContaining('posts/owner-1/a.jpg') }]);
+    expect(response.images).toEqual([
+      { id: 'img-1', url: expect.stringContaining('posts/owner-1/a.jpg'), storageKey: 'posts/owner-1/a.jpg' },
+    ]);
     expect(response.commentCount).toBe(0);
   });
 

@@ -160,8 +160,20 @@ bytes must match that type's magic number. A key that was never uploaded (or
 that names bytes that are not really an image) is rejected with 400. This
 check only runs when a key is attached, never on read.
 
+`PATCH /posts/:postId` accepts any subset of `{ caption, recipeId, imageKeys }`.
+An absent `caption` key leaves it untouched; an explicit `caption: null` clears
+it. `recipeId`, when present, must reference an existing recipe (404 if not) -
+it stays required on the post, this only changes which recipe it links to.
+`imageKeys`, when present, replaces the whole image set wholesale, in the
+given order (order defines position) - it is not a diff, so a client must
+re-send the storage keys of any existing images it wants to keep alongside
+any new ones, and dropping below 1 or exceeding 10 images is rejected. Every
+key, including ones already attached to the post, goes through the same
+ownership and storage verification as on create.
+
 | POST | `/posts` | yes | `{ caption?, recipeId, imageKeys: string[] }` min 1 image. `recipeId` is required: a post always documents cooking a recipe |
 | GET | `/posts/:postId` | optional | detail incl. reaction summary + comment count |
+| PATCH | `/posts/:postId` | yes, owner | any subset of `{ caption?, recipeId?, imageKeys? }`. 403 on non-owner, 404 on unknown post or unknown `recipeId` |
 | DELETE | `/posts/:postId` | yes, owner | 204 |
 | DELETE | `/posts/:postId/images/:imageId` | yes, owner | 204, refuses to remove the last image |
 | PUT | `/posts/:postId/reactions` | yes | `{ emoji }` upsert own reaction |
@@ -175,4 +187,6 @@ check only runs when a key is attached, never on read.
 | --- | --- | --- | --- |
 | GET | `/feed` | yes | paginated, posts from followed users plus your own, newest first |
 
-Post payload includes: `id, caption, createdAt, author {id, username, profileImage}, images [{id, url}], recipe {id, title, nutrition, isSaved}, reactions { total, byEmoji: Record<string, number>, mine: string | null }, commentCount`.
+Post payload includes: `id, caption, createdAt, author {id, username, profileImage}, images [{id, url, storageKey}], recipe {id, title, nutrition, isSaved}, reactions { total, byEmoji: Record<string, number>, mine: string | null }, commentCount`.
+`storageKey` is the raw object key behind `url` (the same value `publicUrlFor` used to build it), returned so a
+`PATCH /posts/:postId` caller can re-send the keys of images it wants to keep.
