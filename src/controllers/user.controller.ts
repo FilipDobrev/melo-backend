@@ -1,7 +1,8 @@
 import { BadRequestError } from '../lib/errors';
 import * as userService from '../services/user.service';
 import type { MeUser, PublicProfile, PublicUser } from '../services/user.service';
-import type { SearchUsersQuery, UpdateMeInput } from '../dto/user.dto';
+import type { CreateUploadUrlResult } from '../services/storage.service';
+import type { AvatarUploadUrlInput, SearchUsersQuery, UpdateMeInput } from '../dto/user.dto';
 import type { Page } from '../lib/pagination';
 import type {
   AuthorizedRequest,
@@ -34,6 +35,18 @@ export async function getPublicProfile(
   if (!userId) throw new BadRequestError('userId is required');
   const profile = await userService.getPublicProfile(userId, req.userId);
   res.status(200).json(profile);
+}
+
+export async function createAvatarUploadUrl(
+  req: AuthorizedRequest<AvatarUploadUrlInput>,
+  res: TypedResponse<CreateUploadUrlResult>,
+): Promise<void> {
+  const result = await userService.createAvatarUploadUrl(
+    req.userId,
+    req.body.contentType,
+    req.body.contentLength,
+  );
+  res.status(200).json(result);
 }
 
 export async function searchUsers(

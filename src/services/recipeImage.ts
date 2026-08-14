@@ -70,6 +70,12 @@ export function resolveRecipeImageUrl(imageKey: string | null): string {
   return publicUrlFor(imageKey);
 }
 
+/// True for a built-in preset reference, which is an app asset (not an
+/// uploaded object) and must never be checked against storage.
+export function isRecipeImagePreset(imageKey: string): boolean {
+  return imageKey.startsWith(PRESET_PREFIX);
+}
+
 /// Rejects any caller-supplied imageKey that is not a known preset or a key
 /// under the caller's own recipe upload prefix, so a user can never point
 /// their recipe at another user's uploaded object. Mirrors

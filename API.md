@@ -26,8 +26,9 @@ All limiters return 429 with the same error envelope, `code: "TOO_MANY_REQUESTS"
 
 - Whole API (`/api/v1/**`): 300 requests/minute per IP.
 - `/auth/register`, `/auth/login`: 10 attempts per 15 minutes per IP (configurable, see `.env.example`).
-- `POST /posts/images/upload-url`, `POST /recipes/images/upload-url`: 30 requests per 5 minutes per IP -
-  tighter because each call mints write access to object storage.
+- `POST /posts/images/upload-url`, `POST /recipes/images/upload-url`,
+  `POST /users/me/avatar/upload-url`: 30 requests per 5 minutes per IP - tighter
+  because each call mints write access to object storage.
 
 Paginated shape: `{ "items": T[], "nextCursor": string | null }`.
 Paginated query params: `?cursor=<uuid>&limit=<1..50>` (default 20).
@@ -40,11 +41,20 @@ Paginated query params: `?cursor=<uuid>&limit=<1..50>` (default 20).
 | POST | `/auth/refresh` | no | `{ refreshToken }` -> `{ accessToken, refreshToken }` (rotates) |
 | POST | `/auth/logout` | yes | `{ refreshToken }` -> 204 |
 
+Refresh tokens are single use and rotate: refreshing revokes the token you
+presented and returns a new one. Presenting a token that was already revoked is
+treated as evidence of theft or replay, not an ordinary error, so every active
+refresh token for that user is revoked and all their sessions end. The response
+is still a plain 401, identical to any other invalid token, so an attacker
+learns nothing. An expired token is an ordinary rejection and does not end
+other sessions.
+
 ## Users
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
 | GET | `/users/me` | yes | own profile incl. email |
 | PATCH | `/users/me` | yes | `{ username?, profileImage? }` |
+| POST | `/users/me/avatar/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }`, key under `avatars/<userId>/` |
 | GET | `/users/:userId` | optional | public profile + counts + `isFollowing` |
 | GET | `/users?search=` | optional | paginated user discovery |
 | POST | `/users/:userId/follow` | yes | 204, 409 on duplicate, 400 on self |
@@ -53,6 +63,20 @@ Paginated query params: `?cursor=<uuid>&limit=<1..50>` (default 20).
 | GET | `/users/:userId/following` | optional | paginated |
 | GET | `/users/:userId/posts` | optional | paginated |
 | GET | `/users/:userId/recipes` | optional | paginated |
+
+`profileImage` in requests accepts a storage key obtained from the upload-url
+endpoint above (must be under the caller's own `avatars/<userId>/` prefix, or
+400) or, TRANSITIONALLY, a plain http(s) URL - the legacy form written
+directly by the current frontend, kept working only until it is rebuilt to
+use the upload flow. In every response (`/users/me`, public profiles, and
+author/owner summaries embedded in posts, recipes, comments and follower
+lists) `profileImage` is always a resolved, fetchable URL, or `null`.
+
+An avatar key is verified against storage the same way post and recipe image
+keys are: the object must exist, be within the size limit, have an allowed
+content type, and have bytes matching that type. A key that was never uploaded
+is rejected with 400. The legacy URL form is not a storage object and is not
+checked.
 
 ## Products
 | Method | Path | Auth | Notes |
@@ -90,6 +114,12 @@ a PATCH body leaves the recipe on its current image, defaulting to the
 `RecipeDetail`, and the cookbook/collection recipe cards) always carry a
 resolved `imageUrl`; the raw `imageKey` is never returned.
 
+A non-preset `imageKey` is verified against storage on create and update,
+the same way as post `imageKeys`: the object must exist, be within the size
+limit, have an allowed content type, and have bytes matching that type. A
+key that was never uploaded is rejected with 400. `preset:<slug>` values are
+app assets, not storage objects, and are never checked against storage.
+
 ## Collections
 
 A collection is a user-owned folder inside the cookbook. Adding a recipe to a
@@ -117,6 +147,13 @@ Removing it from a collection leaves the cookbook save alone.
 `contentLength` and `contentType` are part of the signature. The subsequent PUT
 must send exactly those bytes and that content type, or storage rejects it with
 a 403 that the API never sees. Measure the file, do not estimate.
+
+Every key in `imageKeys` is verified against storage when the post is created:
+the object must actually exist, its size must be within the 10 MB limit, its
+stored content type must be one of the allowed image types, and its first
+bytes must match that type's magic number. A key that was never uploaded (or
+that names bytes that are not really an image) is rejected with 400. This
+check only runs when a key is attached, never on read.
 
 | POST | `/posts` | yes | `{ caption?, recipeId, imageKeys: string[] }` min 1 image. `recipeId` is required: a post always documents cooking a recipe |
 | GET | `/posts/:postId` | optional | detail incl. reaction summary + comment count |

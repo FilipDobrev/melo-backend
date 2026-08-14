@@ -1,6 +1,7 @@
 import { ForbiddenError, NotFoundError } from '../lib/errors';
 import type { CursorPagination, Page } from '../lib/pagination';
 import { toPage } from '../lib/pagination';
+import { resolveProfileImage } from '../lib/profileImage';
 import * as commentRepository from '../repositories/comment.repository';
 import type { CommentRow } from '../repositories/comment.repository';
 import * as postRepository from '../repositories/post.repository';
@@ -20,7 +21,7 @@ function toCommentResponse(row: CommentRow): CommentResponse {
     postId: row.postId,
     content: row.content,
     createdAt: row.createdAt,
-    author: row.author,
+    author: { ...row.author, profileImage: resolveProfileImage(row.author.profileImage) },
   };
 }
 

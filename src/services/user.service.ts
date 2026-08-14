@@ -1,8 +1,11 @@
 import type { User } from '@prisma/client';
-import { ConflictError, NotFoundError } from '../lib/errors';
+import { BadRequestError, ConflictError, NotFoundError } from '../lib/errors';
 import { toPage, type Page } from '../lib/pagination';
+import { resolveProfileImage } from '../lib/profileImage';
 import * as userRepository from '../repositories/user.repository';
 import type { SearchUsersQuery, UpdateMeInput } from '../dto/user.dto';
+import * as storageService from './storage.service';
+import type { CreateUploadUrlResult } from './storage.service';
 
 export interface MeUser {
   id: string;
@@ -31,7 +34,7 @@ export function toMeUser(user: User): MeUser {
     id: user.id,
     username: user.username,
     email: user.email,
-    profileImage: user.profileImage,
+    profileImage: resolveProfileImage(user.profileImage),
     createdAt: user.createdAt,
   };
 }
@@ -40,7 +43,7 @@ export function toPublicUser(user: userRepository.PublicUserRow): PublicUser {
   return {
     id: user.id,
     username: user.username,
-    profileImage: user.profileImage,
+    profileImage: resolveProfileImage(user.profileImage),
     createdAt: user.createdAt,
   };
 }
@@ -51,12 +54,38 @@ export async function getMe(userId: string): Promise<MeUser> {
   return toMeUser(user);
 }
 
+const LEGACY_PROFILE_IMAGE_URL_PATTERN = /^https?:\/\//i;
+
+/// Rejects a storage key that does not belong to the caller's own avatar
+/// upload prefix, so a user cannot point their avatar at another user's
+/// uploaded object. Mirrors validateImageKeyOwnership in post.service.ts.
+/// TRANSITIONAL: a plain http(s) URL skips this check entirely (see
+/// updateMe below) - delete this comment once that form is removed.
+function validateAvatarKeyOwnership(storageKey: string, ownerId: string): void {
+  if (!storageKey.startsWith(`avatars/${ownerId}/`)) {
+    throw new BadRequestError('Avatar image key must belong to the caller');
+  }
+}
+
 export async function updateMe(userId: string, input: UpdateMeInput): Promise<MeUser> {
   if (input.username) {
     const existing = await userRepository.findByUsername(input.username);
     if (existing && existing.id !== userId) {
       throw new ConflictError('Username is already taken');
     }
+  }
+
+  // TRANSITIONAL: the current frontend still sends a plain http(s) URL
+  // directly, so that form is accepted unchecked. Only the storage-key form
+  // is verified as belonging to the caller. Delete this branch, and go back
+  // to always validating, once the frontend only ever sends keys.
+  if (
+    input.profileImage !== undefined &&
+    input.profileImage !== null &&
+    !LEGACY_PROFILE_IMAGE_URL_PATTERN.test(input.profileImage)
+  ) {
+    validateAvatarKeyOwnership(input.profileImage, userId);
+    await storageService.verifyUploadedImage(input.profileImage);
   }
 
   const updated = await userRepository.update(userId, {
@@ -76,12 +105,20 @@ export async function getPublicProfile(userId: string, viewerId?: string): Promi
   return {
     id: profile.id,
     username: profile.username,
-    profileImage: profile.profileImage,
+    profileImage: resolveProfileImage(profile.profileImage),
     createdAt: profile.createdAt,
     followerCount: profile._count.followers,
     followingCount: profile._count.following,
     ...(isFollowing !== undefined ? { isFollowing } : {}),
   };
+}
+
+export function createAvatarUploadUrl(
+  userId: string,
+  contentType: string,
+  contentLength: number,
+): Promise<CreateUploadUrlResult> {
+  return storageService.createUploadUrl({ userId, contentType, contentLength, folder: 'avatars' });
 }
 
 export async function searchUsers(query: SearchUsersQuery): Promise<Page<PublicUser>> {

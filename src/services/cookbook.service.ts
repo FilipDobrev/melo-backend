@@ -1,5 +1,6 @@
 import { NotFoundError } from '../lib/errors';
 import { toPage, type Page } from '../lib/pagination';
+import { resolveProfileImage } from '../lib/profileImage';
 import * as cookbookRepository from '../repositories/cookbook.repository';
 import type { SavedRecipeSummary } from '../repositories/cookbook.repository';
 import { resolveRecipeImageUrl } from './recipeImage';
@@ -11,8 +12,12 @@ export interface SavedRecipeCard extends Omit<SavedRecipeSummary, 'imageKey'> {
 }
 
 export function toSavedRecipeCard(recipe: SavedRecipeSummary): SavedRecipeCard {
-  const { imageKey, ...rest } = recipe;
-  return { ...rest, imageUrl: resolveRecipeImageUrl(imageKey) };
+  const { imageKey, owner, ...rest } = recipe;
+  return {
+    ...rest,
+    owner: { ...owner, profileImage: resolveProfileImage(owner.profileImage) },
+    imageUrl: resolveRecipeImageUrl(imageKey),
+  };
 }
 
 export async function saveRecipe(currentUserId: string, recipeId: string): Promise<void> {
