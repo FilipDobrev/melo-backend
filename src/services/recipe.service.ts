@@ -3,13 +3,14 @@ import type { CreateRecipeInput, ListRecipesQuery, UpdateRecipeInput } from '../
 import { BadRequestError, ForbiddenError, NotFoundError } from '../lib/errors';
 import { type CursorPagination, type Page, toPage } from '../lib/pagination';
 import { prisma, type Db } from '../lib/prisma';
+import { resolveProfileImage } from '../lib/profileImage';
 import * as categoryRepository from '../repositories/category.repository';
 import * as cookbookRepository from '../repositories/cookbook.repository';
 import * as productRepository from '../repositories/product.repository';
 import * as recipeRepository from '../repositories/recipe.repository';
 import type { RecipeDetailRow, RecipeSummaryRow } from '../repositories/recipe.repository';
 import { recipeNutrition, type Nutrition } from './nutrition';
-import { resolveRecipeImageUrl, validateRecipeImageKey } from './recipeImage';
+import { isRecipeImagePreset, resolveRecipeImageUrl, validateRecipeImageKey } from './recipeImage';
 import * as storageService from './storage.service';
 import type { CreateUploadUrlResult } from './storage.service';
 
@@ -75,7 +76,7 @@ export function toRecipeDetail(recipe: RecipeDetailRow): RecipeDetail {
     instructions: recipe.instructions,
     createdAt: recipe.createdAt,
     updatedAt: recipe.updatedAt,
-    owner: recipe.owner,
+    owner: { ...recipe.owner, profileImage: resolveProfileImage(recipe.owner.profileImage) },
     ingredients: recipe.ingredients.map((ingredient) => ({
       id: ingredient.id,
       quantity: ingredient.quantity,
@@ -99,7 +100,7 @@ export function toRecipeSummary(recipe: RecipeSummaryRow): RecipeSummary {
     description: recipe.description,
     createdAt: recipe.createdAt,
     updatedAt: recipe.updatedAt,
-    owner: recipe.owner,
+    owner: { ...recipe.owner, profileImage: resolveProfileImage(recipe.owner.profileImage) },
     categories: recipe.categories.map((assignment) => ({
       slug: assignment.category.slug,
       name: assignment.category.name,
@@ -144,6 +145,9 @@ export async function getRecipeDetail(recipeId: string, viewerId: string | undef
 export async function createRecipe(ownerId: string, input: CreateRecipeInput): Promise<RecipeDetail> {
   if (input.imageKey !== undefined) {
     validateRecipeImageKey(input.imageKey, ownerId);
+    if (!isRecipeImagePreset(input.imageKey)) {
+      await storageService.verifyUploadedImage(input.imageKey);
+    }
   }
 
   return prisma.$transaction(async (tx) => {
@@ -177,6 +181,9 @@ export async function updateRecipe(recipeId: string, viewerId: string, input: Up
 
   if (input.imageKey !== undefined) {
     validateRecipeImageKey(input.imageKey, viewerId);
+    if (!isRecipeImagePreset(input.imageKey)) {
+      await storageService.verifyUploadedImage(input.imageKey);
+    }
   }
 
   return prisma.$transaction(async (tx) => {

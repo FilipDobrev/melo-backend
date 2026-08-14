@@ -1,7 +1,12 @@
 import { BadRequestError, NotFoundError } from '../lib/errors';
 import { toPage, type Page } from '../lib/pagination';
+import { resolveProfileImage } from '../lib/profileImage';
 import * as followRepository from '../repositories/follow.repository';
 import type { UserSummary } from '../repositories/follow.repository';
+
+function toUserSummary(user: UserSummary): UserSummary {
+  return { ...user, profileImage: resolveProfileImage(user.profileImage) };
+}
 
 export async function followUser(currentUserId: string, targetUserId: string): Promise<void> {
   if (currentUserId === targetUserId) {
@@ -27,7 +32,8 @@ export async function listFollowers(
   limit: number,
 ): Promise<Page<UserSummary>> {
   const rows = await followRepository.listFollowers(targetUserId, cursor, limit);
-  return toPage(rows, limit);
+  const page = toPage(rows, limit);
+  return { items: page.items.map(toUserSummary), nextCursor: page.nextCursor };
 }
 
 export async function listFollowing(
@@ -36,5 +42,6 @@ export async function listFollowing(
   limit: number,
 ): Promise<Page<UserSummary>> {
   const rows = await followRepository.listFollowing(targetUserId, cursor, limit);
-  return toPage(rows, limit);
+  const page = toPage(rows, limit);
+  return { items: page.items.map(toUserSummary), nextCursor: page.nextCursor };
 }

@@ -15,6 +15,20 @@ function unique(): string {
 
 export const NONEXISTENT_UUID = '00000000-0000-0000-0000-000000000000';
 
+/// The shortest byte sequence that satisfies storage.service's JPEG magic-
+/// number check (FF D8 FF ...). It is not a decodable photo, but attach-time
+/// verification only reads the header, never renders the file, so this is
+/// enough to exercise "a real upload happened" through the actual presigned
+/// PUT -> MinIO -> HeadObject/GetObject path rather than mocking any of it.
+export const TINY_JPEG_BYTES = Buffer.from([
+  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01,
+  0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
+]);
+
+/// Deliberately not an image: same length class as TINY_JPEG_BYTES but with
+/// no JPEG/PNG/WebP magic number, for the "declared image, wasn't one" case.
+export const NOT_AN_IMAGE_BYTES = Buffer.from('this is definitely not an image file');
+
 export function authHeader(token: string): [string, string] {
   return ['Authorization', `Bearer ${token}`];
 }
@@ -98,20 +112,57 @@ export async function createRecipe(
   return res.body;
 }
 
+const UPLOAD_URL_PATHS: Record<'posts' | 'recipes' | 'avatars', string> = {
+  posts: '/api/v1/posts/images/upload-url',
+  recipes: '/api/v1/recipes/images/upload-url',
+  avatars: '/api/v1/users/me/avatar/upload-url',
+};
+
 export async function getUploadUrl(
   app: Express,
   token: string,
-  kind: 'posts' | 'recipes',
+  kind: 'posts' | 'recipes' | 'avatars',
+  contentType = 'image/jpeg',
+  contentLength = TINY_JPEG_BYTES.length,
 ): Promise<{ storageKey: string; uploadUrl: string }> {
-  const path = kind === 'posts' ? '/api/v1/posts/images/upload-url' : '/api/v1/recipes/images/upload-url';
+  const path = UPLOAD_URL_PATHS[kind];
   const res = await request(app)
     .post(path)
     .set(...authHeader(token))
-    .send({ contentType: 'image/png', contentLength: 1024 });
+    .send({ contentType, contentLength });
   if (res.status !== 200) {
     throw new Error(`getUploadUrl(${kind}) failed with ${res.status}: ${JSON.stringify(res.body)}`);
   }
   return res.body;
+}
+
+/// Sends the actual bytes to the presigned URL, exactly like a real client
+/// would. The URL's signature covers Content-Type and Content-Length, so
+/// both must match what was declared when the URL was requested.
+export async function putToPresignedUrl(uploadUrl: string, contentType: string, bytes: Buffer): Promise<void> {
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType, 'Content-Length': String(bytes.length) },
+    body: bytes,
+  });
+  if (!res.ok) {
+    throw new Error(`putToPresignedUrl failed with ${res.status}: ${await res.text()}`);
+  }
+}
+
+/// Full round trip a genuine client performs: request a presigned URL, then
+/// actually upload to it, so the resulting storageKey refers to a real
+/// object in storage rather than one that was merely reserved.
+export async function uploadRealImage(
+  app: Express,
+  token: string,
+  kind: 'posts' | 'recipes' | 'avatars',
+  bytes: Buffer = TINY_JPEG_BYTES,
+  contentType = 'image/jpeg',
+): Promise<{ storageKey: string; uploadUrl: string }> {
+  const upload = await getUploadUrl(app, token, kind, contentType, bytes.length);
+  await putToPresignedUrl(upload.uploadUrl, contentType, bytes);
+  return upload;
 }
 
 export async function createPost(
@@ -124,7 +175,7 @@ export async function createPost(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   const uploads = await Promise.all(
-    Array.from({ length: imageCount }, () => getUploadUrl(app, token, 'posts')),
+    Array.from({ length: imageCount }, () => uploadRealImage(app, token, 'posts')),
   );
   const body = {
     caption: 'A test post',

@@ -1,12 +1,13 @@
 import { NotFoundError, ForbiddenError, BadRequestError } from '../lib/errors';
 import type { CursorPagination, Page } from '../lib/pagination';
 import { toPage } from '../lib/pagination';
+import { resolveProfileImage } from '../lib/profileImage';
 import * as postRepository from '../repositories/post.repository';
 import type { PostCardRow } from '../repositories/post.repository';
 import * as cookbookRepository from '../repositories/cookbook.repository';
 import * as reactionRepository from '../repositories/reaction.repository';
 import { EMPTY_REACTION_SUMMARY, type ReactionSummary } from '../repositories/reaction.repository';
-import { publicUrlFor } from './storage.service';
+import { publicUrlFor, verifyUploadedImage } from './storage.service';
 import { recipeNutrition, type Nutrition } from './nutrition';
 
 export interface AuthorSummary {
@@ -47,7 +48,7 @@ export function toPostResponse(
     id: row.id,
     caption: row.caption,
     createdAt: row.createdAt,
-    author: row.owner,
+    author: { ...row.owner, profileImage: resolveProfileImage(row.owner.profileImage) },
     images: row.images.map((image) => ({ id: image.id, url: publicUrlFor(image.storageKey) })),
     recipe: {
       id: row.recipe.id,
@@ -84,6 +85,9 @@ export function validateImageKeyOwnership(imageKeys: string[], ownerId: string):
 
 export async function createPost(input: CreatePostInput): Promise<PostResponse> {
   validateImageKeyOwnership(input.imageKeys, input.ownerId);
+  // Up to 10 images per post (see createPostSchema), so verify them
+  // concurrently rather than paying HeadObject+GetObject latency per key.
+  await Promise.all(input.imageKeys.map((key) => verifyUploadedImage(key)));
 
   const recipeFound = await postRepository.recipeExists(input.recipeId);
   if (!recipeFound) throw new NotFoundError('Recipe not found');

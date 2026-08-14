@@ -8,6 +8,7 @@ import {
   getUploadUrl,
   NONEXISTENT_UUID,
   registerUser,
+  uploadRealImage,
 } from './helpers/factories';
 
 describe('PATCH /recipes/:recipeId', () => {
@@ -144,7 +145,7 @@ describe('recipe imageKey ownership', () => {
   it('accepts the caller\'s own uploaded storage key', async () => {
     const owner = await registerUser(app);
     const recipe = await createRecipe(app, owner.accessToken);
-    const ownUpload = await getUploadUrl(app, owner.accessToken, 'recipes');
+    const ownUpload = await uploadRealImage(app, owner.accessToken, 'recipes');
 
     const res = await request(app)
       .patch(`/api/v1/recipes/${recipe.id}`)

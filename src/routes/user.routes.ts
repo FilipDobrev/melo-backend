@@ -1,9 +1,17 @@
 import { Router } from 'express';
+import type { ParamsDictionary } from 'express-serve-static-core';
 import { asyncHandler, authed } from '../middleware/asyncHandler';
 import { optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
+import { uploadUrlRateLimiter } from '../middleware/rateLimit';
 import * as userController from '../controllers/user.controller';
-import { searchUsersQuerySchema, updateMeSchema, userIdParamsSchema } from '../dto/user.dto';
+import {
+  avatarUploadUrlSchema,
+  searchUsersQuerySchema,
+  updateMeSchema,
+  userIdParamsSchema,
+  type AvatarUploadUrlInput,
+} from '../dto/user.dto';
 import { collectionRouter } from './collection.routes';
 import { cookbookListRouter } from './cookbook.routes';
 import { followRouter } from './follow.routes';
@@ -22,6 +30,16 @@ userRouter.use(userRecipeRouter);
 
 userRouter.get('/me', ...authed(userController.getMe));
 userRouter.patch('/me', validate({ body: updateMeSchema }), ...authed(userController.updateMe));
+
+/// Literal path, so it must be registered before `/:userId`, or express
+/// would swallow it as a userId lookup instead. Mirrors the images/upload-url
+/// routes on postRouter/recipeRouter.
+userRouter.post<ParamsDictionary, unknown, AvatarUploadUrlInput>(
+  '/me/avatar/upload-url',
+  uploadUrlRateLimiter,
+  validate({ body: avatarUploadUrlSchema }),
+  ...authed(userController.createAvatarUploadUrl),
+);
 
 userRouter.get(
   '/',
