@@ -15,6 +15,19 @@ export const createPostSchema = z.object({
 });
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 
+/// Any subset of the create fields. `caption` uses `.nullable().optional()`
+/// so the service can tell "key absent, leave untouched" (undefined) apart
+/// from "key present as null, clear it" (null) - see updatePostSchema's
+/// consumer in post.service.ts. `recipeId` stays required on the post
+/// itself; here it is only optional because the caller may not want to
+/// change it. `imageKeys`, when present, replaces the whole set wholesale.
+export const updatePostSchema = z.object({
+  caption: z.string().trim().max(2000).nullable().optional(),
+  recipeId: z.string().uuid().optional(),
+  imageKeys: z.array(z.string().trim().min(1)).min(1).max(10).optional(),
+});
+export type UpdatePostInput = z.infer<typeof updatePostSchema>;
+
 export const postIdParamsSchema = z.object({
   postId: z.string().uuid(),
 });

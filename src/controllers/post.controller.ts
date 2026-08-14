@@ -1,4 +1,4 @@
-import type { CreateUploadUrlInput, CreatePostInput, ListPostsQuery } from '../dto/post.dto';
+import type { CreateUploadUrlInput, CreatePostInput, ListPostsQuery, UpdatePostInput } from '../dto/post.dto';
 import type { PutReactionInput } from '../dto/reaction.dto';
 import type { Page } from '../lib/pagination';
 import * as postService from '../services/post.service';
@@ -47,6 +47,14 @@ export async function getPost(
   res: TypedResponse<PostResponse>,
 ): Promise<void> {
   const post = await postService.getPostDetail(req.params.postId, req.userId ?? null);
+  res.status(200).json(post);
+}
+
+export async function updatePost(
+  req: AuthorizedRequest<UpdatePostInput, unknown, PostIdParams>,
+  res: TypedResponse<PostResponse>,
+): Promise<void> {
+  const post = await postService.updatePost(req.params.postId, req.userId, req.body);
   res.status(200).json(post);
 }
 

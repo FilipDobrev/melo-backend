@@ -8,12 +8,14 @@ import * as postController from '../controllers/post.controller';
 import {
   createUploadUrlSchema,
   createPostSchema,
+  updatePostSchema,
   postIdParamsSchema,
   postImageParamsSchema,
   userPostsParamsSchema,
   listPostsQuerySchema,
   type CreateUploadUrlInput,
   type CreatePostInput,
+  type UpdatePostInput,
   type PostIdParams,
   type PostImageParams,
   type UserPostsParams,
@@ -40,6 +42,12 @@ postRouter.get<PostIdParams>(
   optionalAuth,
   validate({ params: postIdParamsSchema }),
   asyncHandler(postController.getPost),
+);
+
+postRouter.patch<PostIdParams, unknown, UpdatePostInput>(
+  '/:postId',
+  validate({ params: postIdParamsSchema, body: updatePostSchema }),
+  ...authed(postController.updatePost),
 );
 
 postRouter.delete<PostIdParams>(

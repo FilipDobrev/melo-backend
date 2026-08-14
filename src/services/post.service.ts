@@ -1,6 +1,7 @@
 import { NotFoundError, ForbiddenError, BadRequestError } from '../lib/errors';
 import type { CursorPagination, Page } from '../lib/pagination';
 import { toPage } from '../lib/pagination';
+import { prisma } from '../lib/prisma';
 import { resolveProfileImage } from '../lib/profileImage';
 import * as postRepository from '../repositories/post.repository';
 import type { PostCardRow } from '../repositories/post.repository';
@@ -19,6 +20,12 @@ export interface AuthorSummary {
 export interface PostImageDto {
   id: string;
   url: string;
+  // The raw storage key, not just the resolved url. A client editing a post
+  // has to re-send the keys of images it wants to keep (PATCH replaces the
+  // image set wholesale), and has no other way to get them. This discloses
+  // nothing new: publicUrlFor builds `url` by prefixing this same key with
+  // the storage base url, so the key is already the tail of `url`.
+  storageKey: string;
 }
 
 export interface RecipeSummary {
@@ -49,7 +56,11 @@ export function toPostResponse(
     caption: row.caption,
     createdAt: row.createdAt,
     author: { ...row.owner, profileImage: resolveProfileImage(row.owner.profileImage) },
-    images: row.images.map((image) => ({ id: image.id, url: publicUrlFor(image.storageKey) })),
+    images: row.images.map((image) => ({
+      id: image.id,
+      url: publicUrlFor(image.storageKey),
+      storageKey: image.storageKey,
+    })),
     recipe: {
       id: row.recipe.id,
       title: row.recipe.title,
@@ -119,6 +130,52 @@ export async function getPostDetail(postId: string, viewerId: string | null): Pr
     summaries.get(postId) ?? EMPTY_REACTION_SUMMARY,
     savedRecipeIds.has(row.recipe.id),
   );
+}
+
+export interface UpdatePostInput {
+  caption?: string | null;
+  recipeId?: string;
+  imageKeys?: string[];
+}
+
+export async function updatePost(postId: string, viewerId: string, input: UpdatePostInput): Promise<PostResponse> {
+  const existing = await postRepository.findOwnerId(postId);
+  if (!existing) throw new NotFoundError('Post not found');
+  if (existing.ownerId !== viewerId) throw new ForbiddenError();
+
+  if (input.recipeId !== undefined) {
+    const recipeFound = await postRepository.recipeExists(input.recipeId);
+    if (!recipeFound) throw new NotFoundError('Recipe not found');
+  }
+
+  if (input.imageKeys !== undefined) {
+    validateImageKeyOwnership(input.imageKeys, viewerId);
+    // Every key is re-verified against storage, including ones already
+    // attached to this post - those really do exist as objects in storage,
+    // so they pass naturally. No exemption is made for "existing" keys.
+    await Promise.all(input.imageKeys.map((key) => verifyUploadedImage(key)));
+  }
+
+  await prisma.$transaction(async (tx) => {
+    if (input.imageKeys) {
+      // Wholesale replace, the same way updateRecipe replaces ingredients:
+      // delete every PostImage row and recreate from imageKeys in order.
+      // This reissues each image's id, which is fine because the client
+      // refetches the post after an edit. Position comes from array order.
+      await postRepository.deletePostImages(postId, tx);
+      await postRepository.createPostImages(
+        postId,
+        input.imageKeys.map((storageKey, position) => ({ storageKey, position })),
+        tx,
+      );
+    }
+
+    if (input.caption !== undefined || input.recipeId !== undefined) {
+      await postRepository.updatePostFields(postId, { caption: input.caption, recipeId: input.recipeId }, tx);
+    }
+  });
+
+  return getPostDetail(postId, viewerId);
 }
 
 export async function deletePost(postId: string, userId: string): Promise<void> {

@@ -140,3 +140,29 @@ export function findImageWithPost(
 export function deleteImage(imageId: string, db: Db = prisma): Promise<{ id: string }> {
   return db.postImage.delete({ where: { id: imageId }, select: { id: true } });
 }
+
+export interface UpdatePostFields {
+  caption?: string | null;
+  recipeId?: string;
+}
+
+/// Prisma ignores `undefined` fields in an update (treated as "not
+/// provided"), which is what lets the caller pass both fields through
+/// unconditionally and rely on only the ones actually present taking effect.
+export async function updatePostFields(postId: string, data: UpdatePostFields, db: Db = prisma): Promise<void> {
+  await db.post.update({ where: { id: postId }, data });
+}
+
+export function deletePostImages(postId: string, db: Db = prisma): Promise<Prisma.BatchPayload> {
+  return db.postImage.deleteMany({ where: { postId } });
+}
+
+export function createPostImages(
+  postId: string,
+  images: CreatePostImageData[],
+  db: Db = prisma,
+): Promise<Prisma.BatchPayload> {
+  return db.postImage.createMany({
+    data: images.map((image) => ({ postId, storageKey: image.storageKey, position: image.position })),
+  });
+}
