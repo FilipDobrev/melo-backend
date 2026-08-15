@@ -64,6 +64,9 @@ function orderFor(sort: RecipeSort): Prisma.RecipeOrderByWithRelationInput[] {
  */
 export async function findManyRecipes(params: RecipeListParams, db: Db = prisma): Promise<RecipeSummaryRow[]> {
   const where: Prisma.RecipeWhereInput = {
+    // A pending-deletion owner's recipes are excluded from every listing,
+    // global and per-owner alike.
+    owner: { deletionRequestedAt: null },
     ...(params.ownerId ? { ownerId: params.ownerId } : {}),
     ...(params.search ? { title: { contains: params.search, mode: 'insensitive' } } : {}),
     ...(params.categorySlugs && params.categorySlugs.length > 0
@@ -84,13 +87,17 @@ export async function findManyRecipes(params: RecipeListParams, db: Db = prisma)
  * `savedBy` filter - and the resulting query shape - never varies. Include
  * shape here mirrors recipeDetailInclude/RecipeDetailRow but is written out
  * separately to add the viewer-scoped `savedBy` where clause. */
+/**
+ * `findFirst` rather than `findUnique`: a pending-deletion owner's recipes
+ * must 404 for everyone, so `id` is combined with a non-unique owner filter.
+ */
 export async function findRecipeDetail(
   id: string,
   viewerId: string,
   db: Db = prisma,
 ): Promise<RecipeDetailRow | null> {
-  return db.recipe.findUnique({
-    where: { id },
+  return db.recipe.findFirst({
+    where: { id, owner: { deletionRequestedAt: null } },
     include: {
       owner: { select: ownerSummarySelect },
       ingredients: { include: { product: true } },
@@ -180,4 +187,39 @@ export async function createRecipeCategories(
 
 export async function deleteRecipeCategories(recipeId: string, db: Db = prisma): Promise<void> {
   await db.recipeCategory.deleteMany({ where: { recipeId } });
+}
+
+/** Row shape needed to purge a user's storage objects after reassignment: the
+ * recipe's id (to reassign) and its imageKey (to keep out of the storage
+ * prefix delete, since the object stays physically under the original
+ * owner's `recipes/<ownerId>/` prefix even after ownership changes). */
+export interface RecipeNeedingReassignment {
+  id: string;
+  imageKey: string | null;
+}
+
+/**
+ * Recipes owned by `userId` that a DIFFERENT user's post depends on
+ * (`Post.recipeId` -> `Recipe`, `Recipe.ownerId` -> `User` both cascade), so
+ * deleting `userId` would otherwise silently destroy someone else's post.
+ * Used by the purge script to find recipes that must be reassigned to the
+ * tombstone account instead of being deleted along with the user.
+ */
+export function findRecipesNeedingReassignment(
+  userId: string,
+  db: Db = prisma,
+): Promise<RecipeNeedingReassignment[]> {
+  return db.recipe.findMany({
+    where: { ownerId: userId, posts: { some: { ownerId: { not: userId } } } },
+    select: { id: true, imageKey: true },
+  });
+}
+
+/** Transfers ownership of the given recipes, e.g. to the purge tombstone account. */
+export function reassignRecipes(
+  recipeIds: string[],
+  newOwnerId: string,
+  db: Db = prisma,
+): Promise<Prisma.BatchPayload> {
+  return db.recipe.updateMany({ where: { id: { in: recipeIds } }, data: { ownerId: newOwnerId } });
 }

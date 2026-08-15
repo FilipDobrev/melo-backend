@@ -75,8 +75,15 @@ export function createPost(data: CreatePostData, db: Db = prisma): Promise<PostC
   });
 }
 
+/**
+ * `findFirst` rather than `findUnique`: a pending-deletion owner's posts must
+ * 404 for everyone, so `id` is combined with a non-unique owner filter.
+ */
 export function findDetailById(postId: string, db: Db = prisma): Promise<PostCardRow | null> {
-  return db.post.findUnique({ where: { id: postId }, select: POST_CARD_SELECT });
+  return db.post.findFirst({
+    where: { id: postId, owner: { deletionRequestedAt: null } },
+    select: POST_CARD_SELECT,
+  });
 }
 
 /** Used to authorize post mutations: caller compares the returned `ownerId`
@@ -118,7 +125,8 @@ export function listByOwner(
   db: Db = prisma,
 ): Promise<PostCardRow[]> {
   return db.post.findMany({
-    where: { ownerId },
+    // A pending-deletion owner's posts are hidden from this listing too.
+    where: { ownerId, owner: { deletionRequestedAt: null } },
     select: POST_CARD_SELECT,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,

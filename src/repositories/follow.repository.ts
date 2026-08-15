@@ -9,8 +9,16 @@ export interface UserSummary {
 
 const userSummarySelect = { id: true, username: true, profileImage: true } as const;
 
+/**
+ * Excludes pending-deletion users, so following (and 404s from
+ * followUser/unfollowUser's existence check) treats them as gone, same as
+ * every other surface.
+ */
 export async function userExists(userId: string, db: Db = prisma): Promise<boolean> {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { id: true } });
+  const user = await db.user.findFirst({
+    where: { id: userId, deletionRequestedAt: null },
+    select: { id: true },
+  });
   return user !== null;
 }
 
@@ -51,7 +59,8 @@ export async function listFollowers(
   db: Db = prisma,
 ): Promise<UserSummary[]> {
   const rows = await db.follow.findMany({
-    where: { followingId: userId },
+    // A pending-deletion follower must not appear in someone else's list.
+    where: { followingId: userId, follower: { deletionRequestedAt: null } },
     orderBy: [{ createdAt: 'desc' }, { followerId: 'desc' }],
     take: limit + 1,
     ...(cursor
@@ -73,7 +82,8 @@ export async function listFollowing(
   db: Db = prisma,
 ): Promise<UserSummary[]> {
   const rows = await db.follow.findMany({
-    where: { followerId: userId },
+    // A pending-deletion followee must not appear in someone else's list.
+    where: { followerId: userId, following: { deletionRequestedAt: null } },
     orderBy: [{ createdAt: 'desc' }, { followingId: 'desc' }],
     take: limit + 1,
     ...(cursor

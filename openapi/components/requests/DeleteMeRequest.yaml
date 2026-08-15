@@ -1,0 +1,13 @@
+type: object
+description: >-
+  Re-verifies the caller's password before scheduling account deletion. A
+  valid access token alone is never enough: tokens can be stolen and remain
+  valid for their whole TTL, so destroying an account requires proving the
+  password one more time.
+required:
+  - password
+properties:
+  password:
+    type: string
+    minLength: 1
+    description: Compared against the stored bcrypt hash.

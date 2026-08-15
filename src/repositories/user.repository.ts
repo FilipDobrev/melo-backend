@@ -54,12 +54,29 @@ export function update(id: string, data: UpdateUserData, db: Db = prisma): Promi
   return db.user.update({ where: { id }, data });
 }
 
+/**
+ * Final step of a purge: removes the user row and lets the schema's cascades
+ * remove everything that still points at it (posts, comments, reactions,
+ * follows, cookbook saves, collections, refresh tokens, and any recipe not
+ * already reassigned to the tombstone account).
+ */
+export function deleteUser(id: string, db: Db = prisma): Promise<User> {
+  return db.user.delete({ where: { id } });
+}
+
+/**
+ * Excludes pending-deletion users: their public profile is gone for everyone
+ * else the moment deletion is requested, even though the row still exists
+ * until the purge. `findFirst` rather than `findUnique` because the filter
+ * combines the unique `id` with a non-unique condition; `id` alone still
+ * makes this a single-row lookup.
+ */
 export function findPublicProfileCounts(
   id: string,
   db: Db = prisma,
 ): Promise<PublicProfileCounts | null> {
-  return db.user.findUnique({
-    where: { id },
+  return db.user.findFirst({
+    where: { id, deletionRequestedAt: null },
     select: {
       id: true,
       username: true,
@@ -109,10 +126,39 @@ export function search(
   db: Db = prisma,
 ): Promise<PublicUserRow[]> {
   return db.user.findMany({
-    where: term ? { username: { contains: term, mode: 'insensitive' } } : undefined,
+    // Pending-deletion users must not surface in discovery.
+    where: {
+      deletionRequestedAt: null,
+      ...(term ? { username: { contains: term, mode: 'insensitive' } } : {}),
+    },
     select: { id: true, username: true, profileImage: true, createdAt: true },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+  });
+}
+
+export interface PendingDeletionUser {
+  id: string;
+}
+
+/** Requesting deletion: stamps the timestamp that starts the grace period. */
+export function setDeletionRequested(id: string, requestedAt: Date, db: Db = prisma): Promise<User> {
+  return db.user.update({ where: { id }, data: { deletionRequestedAt: requestedAt } });
+}
+
+/** Cancelling deletion: returns the account to normal. */
+export function clearDeletionRequested(id: string, db: Db = prisma): Promise<User> {
+  return db.user.update({ where: { id }, data: { deletionRequestedAt: null } });
+}
+
+/** Users whose grace period has elapsed - the purge script's work queue. */
+export function findPendingDeletionOlderThan(
+  cutoff: Date,
+  db: Db = prisma,
+): Promise<PendingDeletionUser[]> {
+  return db.user.findMany({
+    where: { deletionRequestedAt: { lt: cutoff } },
+    select: { id: true },
   });
 }

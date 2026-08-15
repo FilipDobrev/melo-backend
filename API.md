@@ -57,8 +57,10 @@ other sessions.
 ## Users
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| GET | `/users/me` | yes | own profile incl. email |
+| GET | `/users/me` | yes | own profile incl. email, `deletionRequestedAt`, `purgeAt` |
 | PATCH | `/users/me` | yes | `{ username?, profileImage? }` |
+| DELETE | `/users/me` | yes | `{ password }` -> 204, requests account deletion (see below) |
+| POST | `/users/me/restore` | yes | no body -> 204, cancels a pending deletion; 409 if not pending |
 | POST | `/users/me/avatar/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }`, key under `avatars/<userId>/` |
 | GET | `/users/:userId` | optional | public profile + counts + `isFollowing` for the caller if authenticated |
 | GET | `/users?search=` | no | paginated user discovery |
@@ -68,6 +70,84 @@ other sessions.
 | GET | `/users/:userId/following` | no | paginated |
 | GET | `/users/:userId/posts` | optional | paginated; each post's `reaction` reflects the caller's own reaction if authenticated |
 | GET | `/users/:userId/recipes` | no | paginated |
+
+### Account deletion
+
+`DELETE /users/me` re-verifies `password` against the stored bcrypt hash before
+doing anything - a wrong password is 401 and changes nothing. A valid access
+token alone is never enough to destroy an account: tokens can be stolen and
+stay valid for up to their 15-minute TTL, so destroying an account requires
+proving the password one more time. On success it stamps `deletionRequestedAt`,
+revokes every refresh token for the account (logging it out everywhere), and
+returns 204.
+
+This is a soft delete with a grace period
+(`ACCOUNT_DELETION_GRACE_PERIOD_DAYS`, default 30 days), not an immediate
+purge. While `deletionRequestedAt` is set:
+
+- The account can still log in (`POST /auth/login` succeeds normally) and
+  read its own state (`GET /users/me`, which exposes `deletionRequestedAt`
+  and `purgeAt` so the client can show a "your account will be deleted on
+  &lt;date&gt;" banner and an undo action) - that is how it cancels.
+- For everyone else, the account and its content disappear immediately.
+  Every listing and detail endpoint that can surface a user or their
+  content excludes pending-deletion users: user search
+  (`GET /users?search=`), public profile (`GET /users/:userId` -> 404),
+  follower and following lists, a user's own posts and recipes listings,
+  the feed, the global recipe list, and single post/recipe detail (also
+  404). Following a pending-deletion user (`POST /users/:userId/follow`)
+  also 404s, the same as any other now-gone user.
+- **Deliberate exception**: comments the account already wrote on other
+  users' posts stay visible. Hiding them would mean filtering inside every
+  comment listing for a case that resolves itself the moment the account is
+  actually purged, so this is left alone on purpose rather than being an
+  oversight - flagged here for review.
+
+`POST /users/me/restore` clears `deletionRequestedAt`, returning the account
+to normal immediately. It only succeeds while still inside the grace period;
+calling it on an account that isn't pending deletion, or whose grace period
+has already elapsed, is a 409.
+
+### Purge
+
+`npm run users:purge` (`scripts/purge-deleted-users.ts`) finds every account
+whose `deletionRequestedAt` is older than the grace period and purges it for
+good, one user at a time. No scheduler is built in - run it on a cron, the
+same way `npm run tokens:prune` is expected to be scheduled. Safe to re-run:
+nothing eligible means nothing happens.
+
+Purging a user, in order:
+
+1. **Reassign dependent recipes.** `Post.recipeId` cascades from `Recipe`,
+   and `Recipe.ownerId` cascades from `User` - so deleting a user would
+   silently destroy any post another user made from that user's recipe. Any
+   recipe referenced by a post belonging to a *different* user is
+   transferred to a reserved tombstone account (username `deleted-user`,
+   email `deleted-accounts@melo.invalid` - the `.invalid` TLD is reserved by
+   RFC 2606 and can never receive mail - and a bcrypt hash of a random value
+   nobody knows, so it can never be logged into) before the user row is
+   touched, created idempotently on first use. Every other recipe the user
+   owns is left alone and removed by the cascade in step 3.
+2. **Delete stored images.** Everything under `posts/<userId>/`,
+   `recipes/<userId>/` and `avatars/<userId>/` is deleted from object
+   storage, except the image keys of recipes just reassigned in step 1 -
+   those objects are still referenced by a retained recipe, even though it
+   now belongs to the tombstone account, because the storage key itself
+   never moves. A storage failure on one of the three prefixes is logged at
+   error level and does **not** abort the purge: the database deletion still
+   runs. Database erasure is what actually satisfies "the account and its
+   data are gone" (GDPR erasure, Play Store account-deletion requirements);
+   a handful of orphaned images left behind by a storage outage is a
+   recoverable cleanup detail, not a reason to leave a "pending deletion"
+   account stuck forever. The failure is never silently swallowed - it's
+   logged per-prefix and included in the purge's summary log line.
+3. **Delete the user row.** The schema's existing cascades remove
+   everything else: remaining recipes, posts, comments, reactions, follows,
+   cookbook saves, collections and refresh tokens.
+
+Every purge run logs, at info level, the purged user id, how many recipes
+were reassigned, how many storage objects were deleted, and any storage
+prefixes that failed to clean up.
 
 "optional" above means the response is genuinely personalised for an authenticated caller (`isFollowing`, or a post's own reaction). The four `no` rows accept a bearer token (they sit behind the same `optionalAuth` middleware) but never read it — an authenticated and anonymous caller get an identical response. Don't infer personalisation from the middleware name alone; check whether the controller/service actually uses the caller's id.
 

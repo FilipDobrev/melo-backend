@@ -6,6 +6,8 @@ required:
   - email
   - profileImage
   - createdAt
+  - deletionRequestedAt
+  - purgeAt
 properties:
   id:
     type: string
@@ -22,3 +24,22 @@ properties:
   createdAt:
     type: string
     format: date-time
+  deletionRequestedAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: >-
+      When the caller requested account deletion (DELETE /users/me). Null
+      for an active account. While set, the account and its content are
+      hidden from everyone else, but the caller can still log in and see
+      this field to cancel via POST /users/me/restore.
+  purgeAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: >-
+      The date the account becomes eligible for permanent purge (30 days
+      after deletionRequestedAt by default, see
+      ACCOUNT_DELETION_GRACE_PERIOD_DAYS). Null for an active account.

@@ -82,3 +82,54 @@ patch:
       $ref: '../../components/responses/TooManyRequests.yaml'
     '500':
       $ref: '../../components/responses/InternalError.yaml'
+
+delete:
+  operationId: deleteMe
+  summary: Request account deletion
+  description: >-
+    Verifies `password` against the stored hash before doing anything - a
+    401 for the wrong password changes nothing. On success, starts the
+    30-day grace period (`ACCOUNT_DELETION_GRACE_PERIOD_DAYS`) and revokes
+    every refresh token for the account, logging it out everywhere. The
+    account and its content (profile, posts, recipes) disappear from every
+    other surface immediately - user search, public profile, follower/
+    following lists, feed, global recipe list, and post/recipe detail all
+    treat it as gone. Comments the account already wrote on other users'
+    posts stay visible until the account is actually purged; hiding them
+    would mean filtering every comment listing for a case that resolves
+    itself at purge time, so this is a deliberate choice, not an oversight.
+    The account can still log in (POST /auth/login) and read its own state
+    (GET /users/me) during the grace period, which is how it cancels via
+    POST /users/me/restore. Nothing is destroyed until
+    scripts/purge-deleted-users.ts purges accounts whose grace period has
+    elapsed.
+  tags: [Users]
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/DeleteMeRequest.yaml'
+  responses:
+    '204':
+      description: Deletion scheduled; every refresh token for the account is revoked.
+    '401':
+      description: Missing/invalid access token, or the given password does not match.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: Incorrect password
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

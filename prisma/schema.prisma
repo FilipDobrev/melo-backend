@@ -19,13 +19,18 @@ enum Unit {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  username     String   @unique
-  email        String   @unique
-  passwordHash String
-  profileImage String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String    @id @default(uuid())
+  username            String    @unique
+  email               String    @unique
+  passwordHash        String
+  profileImage        String?
+  /// Set when the user requests account deletion; null means the account is
+  /// active. The purge script (scripts/purge-deleted-users.ts) finds every
+  /// row where this is older than the configured grace period and purges
+  /// them. Restoring (POST /users/me/restore) clears it back to null.
+  deletionRequestedAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   recipes       Recipe[]
   posts         Post[]
@@ -38,6 +43,10 @@ model User {
   followers     Follow[]       @relation("Following")
 
   @@index([username])
+  /// Backs the purge query: find every user whose deletion request is older
+  /// than the grace period. Rows where this is null (the overwhelming
+  /// majority of users) are cheap to skip via a partial-style range scan.
+  @@index([deletionRequestedAt])
 }
 
 /// Hashed refresh tokens. Rotated on use; revokedAt set on logout or rotation.

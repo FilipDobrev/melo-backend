@@ -17,6 +17,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
     "tokens:prune": "tsx --env-file-if-exists=.env scripts/prune-refresh-tokens.ts",
+    "users:purge": "tsx --env-file-if-exists=.env scripts/purge-deleted-users.ts",
     "openapi:lint": "redocly lint",
     "openapi:bundle": "redocly bundle openapi/openapi.yaml -o openapi/bundled.yaml",
     "openapi:preview": "redocly preview --port 8081",
