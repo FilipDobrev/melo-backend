@@ -1,0 +1,23 @@
+type: object
+description: >-
+  The recipe a post documents, as embedded in Post. Narrower than
+  RecipeSummary — only what a post card needs, plus the viewer-specific
+  isSaved flag. Required on every post: a post always links to a recipe.
+required:
+  - id
+  - title
+  - nutrition
+  - isSaved
+properties:
+  id:
+    type: string
+    format: uuid
+  title:
+    type: string
+  nutrition:
+    $ref: './Nutrition.yaml'
+  isSaved:
+    type: boolean
+    description: >-
+      Whether the current viewer has saved this recipe to their own
+      cookbook. False for an anonymous viewer.

@@ -1,0 +1,24 @@
+type: object
+description: Aggregate reaction counts for a post, as embedded in Post.
+required:
+  - total
+  - byEmoji
+  - mine
+properties:
+  total:
+    type: integer
+    minimum: 0
+    description: Total reaction count across every emoji.
+  byEmoji:
+    type: object
+    description: Map of emoji to reaction count for that emoji.
+    additionalProperties:
+      type: integer
+      minimum: 0
+  mine:
+    type:
+      - string
+      - 'null'
+    description: >-
+      The current viewer's own reaction emoji, or null if they haven't
+      reacted or the request is anonymous.

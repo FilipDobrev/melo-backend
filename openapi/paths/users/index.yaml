@@ -1,0 +1,30 @@
+get:
+  operationId: searchUsers
+  summary: Search users
+  description: Paginated user discovery. `search`, when present, filters by username. Auth has no effect on the response.
+  tags: [Users]
+  security: []
+  parameters:
+    - name: search
+      in: query
+      required: false
+      description: Filters results by username.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+  responses:
+    '200':
+      description: A page of public users.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/PublicUserPage.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

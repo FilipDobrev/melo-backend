@@ -1,0 +1,14 @@
+type: object
+description: >-
+  Issued by register/login/refresh. Refresh tokens are single-use and
+  rotate on every call to POST /auth/refresh.
+required:
+  - accessToken
+  - refreshToken
+properties:
+  accessToken:
+    type: string
+    description: 'Short-lived JWT. Send as `Authorization: Bearer <accessToken>`.'
+  refreshToken:
+    type: string
+    description: Single-use token; presenting it again after it has rotated revokes the whole session family.

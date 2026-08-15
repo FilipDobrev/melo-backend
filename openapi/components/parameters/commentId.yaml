@@ -1,0 +1,7 @@
+name: commentId
+in: path
+description: Id of the target comment.
+required: true
+schema:
+  type: string
+  format: uuid

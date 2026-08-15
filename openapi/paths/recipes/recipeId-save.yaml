@@ -1,0 +1,42 @@
+post:
+  operationId: saveRecipe
+  summary: Save a recipe to the cookbook
+  tags: [Recipes]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/recipeId.yaml'
+  responses:
+    '204':
+      description: Recipe saved.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '409':
+      $ref: '../../components/responses/Conflict.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+delete:
+  operationId: removeSavedRecipe
+  summary: Unsave a recipe from the cookbook
+  description: 404 if the caller has not saved this recipe (or the recipe does not exist).
+  tags: [Recipes]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/recipeId.yaml'
+  responses:
+    '204':
+      description: Recipe unsaved.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

@@ -1,0 +1,61 @@
+post:
+  operationId: followUser
+  summary: Follow a user
+  description: Following yourself is rejected with 400. A duplicate follow is rejected with 409.
+  tags: [Users]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/userId.yaml'
+  responses:
+    '204':
+      description: Now following this user.
+    '400':
+      description: Cannot follow yourself.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: You cannot follow yourself
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '409':
+      $ref: '../../components/responses/Conflict.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+delete:
+  operationId: unfollowUser
+  summary: Unfollow a user
+  description: 404 if the caller was not already following this user.
+  tags: [Users]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/userId.yaml'
+  responses:
+    '204':
+      description: No longer following this user.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      description: The caller was not following this user.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

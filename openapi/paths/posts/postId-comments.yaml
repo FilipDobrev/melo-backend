@@ -1,0 +1,58 @@
+get:
+  operationId: listComments
+  summary: List a post's comments
+  description: Public. Never personalised.
+  tags: [Posts]
+  security: []
+  parameters:
+    - $ref: '../../components/parameters/postId.yaml'
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+  responses:
+    '200':
+      description: A page of comments.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/CommentPage.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+post:
+  operationId: createComment
+  summary: Comment on a post
+  description: Any authenticated caller may comment, not just followers or the post owner.
+  tags: [Posts]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/postId.yaml'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/CreateCommentRequest.yaml'
+  responses:
+    '201':
+      description: The created comment.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Comment.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

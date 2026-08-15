@@ -16,7 +16,11 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "tsx prisma/seed.ts",
-    "tokens:prune": "tsx --env-file-if-exists=.env scripts/prune-refresh-tokens.ts"
+    "tokens:prune": "tsx --env-file-if-exists=.env scripts/prune-refresh-tokens.ts",
+    "openapi:lint": "redocly lint",
+    "openapi:bundle": "redocly bundle openapi/openapi.yaml -o openapi/bundled.yaml",
+    "openapi:preview": "redocly preview --port 8081",
+    "openapi:docs": "redocly build-docs openapi/openapi.yaml -o openapi/docs.html"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -36,6 +40,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@redocly/cli": "^2.46.1",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",

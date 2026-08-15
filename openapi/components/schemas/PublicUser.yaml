@@ -1,0 +1,21 @@
+type: object
+description: A user as shown to any viewer (own or another user's public identity).
+required:
+  - id
+  - username
+  - profileImage
+  - createdAt
+properties:
+  id:
+    type: string
+    format: uuid
+  username:
+    type: string
+  profileImage:
+    type:
+      - string
+      - 'null'
+    description: Always a resolved, fetchable URL, or null. Never a raw storage key.
+  createdAt:
+    type: string
+    format: date-time

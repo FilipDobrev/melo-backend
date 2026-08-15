@@ -1,0 +1,14 @@
+type: object
+description: A seeded recipe category.
+required:
+  - id
+  - slug
+  - name
+properties:
+  id:
+    type: string
+    format: uuid
+  slug:
+    type: string
+  name:
+    type: string

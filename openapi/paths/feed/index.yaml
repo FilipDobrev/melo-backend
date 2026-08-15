@@ -1,0 +1,27 @@
+get:
+  operationId: getFeed
+  summary: Get the caller's feed
+  description: >-
+    Posts from users the caller follows, plus the caller's own posts,
+    newest first.
+  tags: [Feed]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+  responses:
+    '200':
+      description: A page of posts.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/PostPage.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

@@ -1,0 +1,35 @@
+delete:
+  operationId: deletePostImage
+  summary: Remove an image from a post
+  description: >-
+    Owner only. Refuses to remove a post's last remaining image - a post
+    must always keep at least one image, so that case is a 400, not a 403.
+  tags: [Posts]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/postId.yaml'
+    - $ref: '../../components/parameters/imageId.yaml'
+  responses:
+    '204':
+      description: Image removed.
+    '400':
+      description: This is the post's last remaining image; a post must keep at least one.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: A post must keep at least one image
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

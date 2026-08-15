@@ -1,0 +1,7 @@
+name: cursor
+in: query
+description: Id of the last item seen on the previous page. Omit to fetch the first page.
+required: false
+schema:
+  type: string
+  format: uuid

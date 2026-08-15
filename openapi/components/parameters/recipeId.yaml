@@ -1,0 +1,7 @@
+name: recipeId
+in: path
+description: Id of the target recipe.
+required: true
+schema:
+  type: string
+  format: uuid

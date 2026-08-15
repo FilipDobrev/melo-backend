@@ -1,0 +1,42 @@
+servers:
+  - url: http://localhost:4000
+    description: Local dev — outside /api/v1, not versioned.
+get:
+  operationId: getReadiness
+  summary: Readiness probe
+  description: >-
+    Runs `SELECT 1` against Postgres to confirm this instance can actually
+    serve traffic right now. A failed query means "not ready", not "process
+    is broken" — the orchestrator should stop routing traffic here, not
+    restart the process. Not under /api/v1 and not rate limited.
+  tags: [Health]
+  security: []
+  responses:
+    '200':
+      description: Database reachable; ready to serve traffic.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [status]
+            properties:
+              status:
+                type: string
+                enum: [ok]
+    '503':
+      description: >-
+        Database unreachable. Note this response does not use the standard
+        error envelope — it is a plain `{ status, message }` body, not
+        `{ error: {...} }`.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [status, message]
+            properties:
+              status:
+                type: string
+                enum: [error]
+              message:
+                type: string
+                example: Database unreachable

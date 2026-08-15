@@ -1,0 +1,50 @@
+type: object
+description: A post documenting cooking a recipe.
+required:
+  - id
+  - caption
+  - createdAt
+  - author
+  - images
+  - recipe
+  - reactions
+  - commentCount
+properties:
+  id:
+    type: string
+    format: uuid
+  caption:
+    type:
+      - string
+      - 'null'
+    description: Absent-vs-null does not apply on read; this is always present, string or null.
+  createdAt:
+    type: string
+    format: date-time
+  author:
+    type: object
+    description: The post's owner.
+    required: [id, username, profileImage]
+    properties:
+      id:
+        type: string
+        format: uuid
+      username:
+        type: string
+      profileImage:
+        type:
+          - string
+          - 'null'
+        description: Always a resolved, fetchable URL, or null. Never a raw storage key.
+  images:
+    type: array
+    minItems: 1
+    items:
+      $ref: './PostImage.yaml'
+  recipe:
+    $ref: './PostRecipeSummary.yaml'
+  reactions:
+    $ref: './ReactionSummary.yaml'
+  commentCount:
+    type: integer
+    minimum: 0

@@ -1,0 +1,27 @@
+servers:
+  - url: http://localhost:4000
+    description: Local dev — outside /api/v1, not versioned.
+get:
+  operationId: getHealth
+  summary: Liveness probe
+  description: >-
+    Answers 200 as long as the process is up and the event loop is free.
+    Never touches the database, so a database outage must not fail this
+    check. Point container/orchestrator liveness probes here, and readiness
+    probes at GET /health/ready instead — conflating the two would make a
+    database blip restart the process, which does nothing to fix it. Not
+    under /api/v1 and not rate limited.
+  tags: [Health]
+  security: []
+  responses:
+    '200':
+      description: The process is alive.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [status]
+            properties:
+              status:
+                type: string
+                enum: [ok]

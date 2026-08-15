@@ -1,0 +1,7 @@
+name: collectionId
+in: path
+description: Id of the target collection.
+required: true
+schema:
+  type: string
+  format: uuid

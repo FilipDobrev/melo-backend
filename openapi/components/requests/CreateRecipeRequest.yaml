@@ -1,0 +1,46 @@
+type: object
+description: >-
+  Creating a recipe also saves it to the author's own cookbook, in the same
+  transaction.
+required:
+  - title
+  - description
+  - instructions
+  - ingredients
+properties:
+  title:
+    type: string
+    minLength: 1
+    maxLength: 150
+  description:
+    type: string
+    minLength: 1
+    maxLength: 2000
+  instructions:
+    type: string
+    minLength: 1
+    maxLength: 10000
+  ingredients:
+    type: array
+    minItems: 1
+    items:
+      $ref: '../schemas/RecipeIngredientInput.yaml'
+  categorySlugs:
+    type: array
+    default: []
+    items:
+      type: string
+      minLength: 1
+      maxLength: 50
+    description: Defaults to an empty list when omitted.
+  imageKey:
+    type: string
+    minLength: 1
+    maxLength: 500
+    description: >-
+      Either `preset:<slug>` (see GET /recipes/image-presets for the slug
+      list) or a storage key returned by POST /recipes/images/upload-url,
+      which must be under the caller's own `recipes/<userId>/` prefix.
+      Omitting it leaves the recipe on the `default` preset. Only a
+      non-preset key is verified against storage; preset values are never
+      checked.

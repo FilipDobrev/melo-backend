@@ -1,0 +1,46 @@
+post:
+  operationId: register
+  summary: Create an account
+  description: >-
+    Rejects a duplicate email or username with 409. Rate limited to 10
+    attempts per 15 minutes per IP (see API.md's Rate limiting section),
+    the same limiter as login.
+  tags: [Auth]
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/RegisterRequest.yaml'
+  responses:
+    '201':
+      description: Account created.
+      content:
+        application/json:
+          schema:
+            description: The newly created user plus a fresh token pair.
+            allOf:
+              - $ref: '../../components/schemas/AuthTokens.yaml'
+              - type: object
+                required:
+                  - user
+                properties:
+                  user:
+                    $ref: '../../components/schemas/MeUser.yaml'
+    '409':
+      description: Email or username is already in use.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: CONFLICT
+              message: Email is already in use
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

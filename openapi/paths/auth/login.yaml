@@ -1,0 +1,46 @@
+post:
+  operationId: login
+  summary: Log in
+  description: >-
+    Exchanges email and password for a fresh access/refresh token pair.
+    Rate limited to 10 attempts per 15 minutes per IP (see API.md's Rate
+    limiting section).
+  tags: [Auth]
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/LoginRequest.yaml'
+  responses:
+    '200':
+      description: Login succeeded.
+      content:
+        application/json:
+          schema:
+            description: The caller's own profile plus a fresh token pair.
+            allOf:
+              - $ref: '../../components/schemas/AuthTokens.yaml'
+              - type: object
+                required:
+                  - user
+                properties:
+                  user:
+                    $ref: '../../components/schemas/MeUser.yaml'
+    '401':
+      description: Email not found, or password does not match. Deliberately identical for both cases so a caller cannot enumerate registered emails.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: Invalid email or password
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

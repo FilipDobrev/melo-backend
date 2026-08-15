@@ -3,7 +3,7 @@
 Base path: `/api/v1`. JSON only. Auth via `Authorization: Bearer <accessToken>`.
 
 Error shape: `{ "error": { "code": string, "message": string, "details"?: unknown, "requestId"?: string } }`
-Codes: `BAD_REQUEST` 400, `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `CONFLICT` 409, `VALIDATION_FAILED` 422, `INTERNAL` 500.
+Codes: `BAD_REQUEST` 400, `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `NOT_FOUND` 404, `CONFLICT` 409, `VALIDATION_FAILED` 422, `TOO_MANY_REQUESTS` 429, `INTERNAL` 500.
 `requestId` is only present on 5xx responses (4xx is the caller's own fault, nothing to correlate).
 It also matches the `X-Request-Id` header on every response, and the id in the server's log line
 for that request - hand it to support to find the exact log entry.
@@ -60,14 +60,16 @@ other sessions.
 | GET | `/users/me` | yes | own profile incl. email |
 | PATCH | `/users/me` | yes | `{ username?, profileImage? }` |
 | POST | `/users/me/avatar/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }`, key under `avatars/<userId>/` |
-| GET | `/users/:userId` | optional | public profile + counts + `isFollowing` |
-| GET | `/users?search=` | optional | paginated user discovery |
+| GET | `/users/:userId` | optional | public profile + counts + `isFollowing` for the caller if authenticated |
+| GET | `/users?search=` | no | paginated user discovery |
 | POST | `/users/:userId/follow` | yes | 204, 409 on duplicate, 400 on self |
 | DELETE | `/users/:userId/follow` | yes | 204 |
-| GET | `/users/:userId/followers` | optional | paginated |
-| GET | `/users/:userId/following` | optional | paginated |
-| GET | `/users/:userId/posts` | optional | paginated |
-| GET | `/users/:userId/recipes` | optional | paginated |
+| GET | `/users/:userId/followers` | no | paginated |
+| GET | `/users/:userId/following` | no | paginated |
+| GET | `/users/:userId/posts` | optional | paginated; each post's `reaction` reflects the caller's own reaction if authenticated |
+| GET | `/users/:userId/recipes` | no | paginated |
+
+"optional" above means the response is genuinely personalised for an authenticated caller (`isFollowing`, or a post's own reaction). The four `no` rows accept a bearer token (they sit behind the same `optionalAuth` middleware) but never read it — an authenticated and anonymous caller get an identical response. Don't infer personalisation from the middleware name alone; check whether the controller/service actually uses the caller's id.
 
 `profileImage` in requests accepts a storage key obtained from the upload-url
 endpoint above (must be under the caller's own `avatars/<userId>/` prefix, or
@@ -89,6 +91,10 @@ checked.
 | GET | `/products?search=` | optional | paginated |
 | GET | `/products/:productId` | optional | |
 | POST | `/products` | yes | `{ name, caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, densityGPerMl?, gramsPerPiece? }` |
+
+Every product response also includes `source` (string, `"manual"` for API-created products) and
+`externalId` (string or null, only set for products seeded from an external nutrition database) -
+stored fields returned on every read, not just the ones accepted on create.
 
 ## Categories
 | Method | Path | Auth | Notes |

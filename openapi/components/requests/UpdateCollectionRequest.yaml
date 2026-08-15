@@ -1,0 +1,9 @@
+type: object
+description: Renames the collection. Not a partial update - `name` is required.
+required:
+  - name
+properties:
+  name:
+    type: string
+    minLength: 1
+    maxLength: 60

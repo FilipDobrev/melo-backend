@@ -1,0 +1,26 @@
+delete:
+  operationId: removeRecipeFromCollection
+  summary: Remove a recipe from a collection
+  description: >-
+    Owner only. Leaves the cookbook save in place - the recipe is still
+    saved, just not filed under this collection. 404 if the recipe is not
+    currently in the collection.
+  tags: [Collections]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/collectionId.yaml'
+    - $ref: '../../components/parameters/recipeId.yaml'
+  responses:
+    '204':
+      description: Recipe removed from the collection.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

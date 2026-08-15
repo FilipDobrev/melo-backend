@@ -1,0 +1,19 @@
+get:
+  operationId: listRecipeImagePresets
+  summary: List built-in recipe image presets
+  description: The fixed list of built-in image choices. Pass a preset's `slug` as `imageKey` in the form `preset:<slug>` on recipe create/update.
+  tags: [Recipes]
+  security: []
+  responses:
+    '200':
+      description: The built-in image presets.
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../../components/schemas/RecipeImagePreset.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

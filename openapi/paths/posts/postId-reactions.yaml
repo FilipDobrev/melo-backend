@@ -1,0 +1,57 @@
+put:
+  operationId: putReaction
+  summary: React to a post
+  description: >-
+    Upserts the caller's own reaction. A second call replaces the caller's
+    previous reaction with the new emoji rather than adding a second one.
+    Any authenticated caller may react, not just followers or the post
+    owner.
+  tags: [Posts]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/postId.yaml'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/PutReactionRequest.yaml'
+  responses:
+    '200':
+      description: The post's updated reaction summary.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/ReactionSummary.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+delete:
+  operationId: deleteReaction
+  summary: Remove the caller's reaction from a post
+  description: Removes the caller's own reaction, if any. Not an error if the caller had not reacted.
+  tags: [Posts]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/postId.yaml'
+  responses:
+    '204':
+      description: Reaction removed.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

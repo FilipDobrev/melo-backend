@@ -1,0 +1,21 @@
+description: Full recipe resource, as returned by GET/POST/PATCH /recipes/{recipeId}.
+allOf:
+  - $ref: './RecipeSummary.yaml'
+  - type: object
+    required:
+      - instructions
+      - ingredients
+      - nutrition
+      - isSaved
+    properties:
+      instructions:
+        type: string
+      ingredients:
+        type: array
+        items:
+          $ref: './RecipeIngredient.yaml'
+      nutrition:
+        $ref: './Nutrition.yaml'
+      isSaved:
+        type: boolean
+        description: Whether the current viewer has saved this recipe to their cookbook. Always false for an anonymous viewer.

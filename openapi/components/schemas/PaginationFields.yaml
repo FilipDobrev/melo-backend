@@ -1,0 +1,13 @@
+type: object
+description: >-
+  Shared cursor-pagination fields. Combine with an `items` array via `allOf`
+  in each paginated response — see CONVENTIONS.md for the pattern.
+required:
+  - nextCursor
+properties:
+  nextCursor:
+    type:
+      - string
+      - 'null'
+    format: uuid
+    description: Pass as `?cursor=` to fetch the next page. Null when there are no more results.

@@ -1,0 +1,60 @@
+get:
+  operationId: listCollections
+  summary: List the caller's collections
+  description: The caller's own collections, in creation order. Not paginated - a user has few collections, each including its `recipeCount`.
+  tags: [Collections]
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: The caller's collections.
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../../components/schemas/CollectionSummary.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+post:
+  operationId: createCollection
+  summary: Create a collection
+  tags: [Collections]
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/CreateCollectionRequest.yaml'
+  responses:
+    '201':
+      description: The created collection.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/CollectionSummary.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '409':
+      description: The caller already has a collection with this name.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: CONFLICT
+              message: Resource already exists
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

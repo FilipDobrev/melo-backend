@@ -1,0 +1,28 @@
+type: object
+description: >-
+  Any subset of the fields below. An absent `caption` key leaves it
+  untouched; an explicit `caption: null` clears it — the three-state
+  distinction (absent / null / string) matters, so do not default this
+  field when generating a client. `imageKeys`, when present, replaces the
+  whole image set wholesale in the given order; it is not a diff.
+properties:
+  caption:
+    type:
+      - string
+      - 'null'
+    maxLength: 2000
+    description: Omit to leave unchanged. Send null to clear. Send a string to set.
+  recipeId:
+    type: string
+    format: uuid
+    description: Changes which recipe this post links to. The post always has a recipe; this field cannot be cleared, only changed.
+  imageKeys:
+    type: array
+    minItems: 1
+    maxItems: 10
+    items:
+      type: string
+    description: >-
+      Replaces the whole image set, in order. Re-send the storage keys of
+      any existing images to keep them alongside any new ones. Every key,
+      including already-attached ones, is re-verified against storage.

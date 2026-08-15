@@ -1,0 +1,48 @@
+post:
+  operationId: createAvatarUploadUrl
+  summary: Get a presigned avatar upload URL
+  description: >-
+    Mints a presigned S3 PUT URL scoped to the caller's own
+    `avatars/{userId}/` prefix. `contentType` and `contentLength` are part
+    of the signature: the following PUT must send exactly those bytes and
+    that content type, or storage rejects it with a 403 the API never sees.
+    Reference the returned `storageKey` in a following PATCH /users/me call
+    to actually set it as the avatar. Rate limited to 10 requests per 5
+    minutes per IP (see API.md's Rate limiting section) — tighter than the
+    general limit because each call mints write access to object storage.
+  tags: [Users]
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/UploadUrlRequest.yaml'
+  responses:
+    '200':
+      description: A presigned upload URL and the storage key to reference afterwards.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/UploadUrlResult.yaml'
+    '400':
+      description: Unsupported content type, or contentLength outside the allowed range.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Unsupported image content type
+              details:
+                contentType: image/gif
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

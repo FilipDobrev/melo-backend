@@ -1,0 +1,24 @@
+type: object
+description: The authenticated caller's own profile, including their email.
+required:
+  - id
+  - username
+  - email
+  - profileImage
+  - createdAt
+properties:
+  id:
+    type: string
+    format: uuid
+  username:
+    type: string
+  email:
+    type: string
+    format: email
+  profileImage:
+    type:
+      - string
+      - 'null'
+  createdAt:
+    type: string
+    format: date-time

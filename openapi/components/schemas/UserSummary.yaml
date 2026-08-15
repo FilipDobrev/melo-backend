@@ -1,0 +1,17 @@
+type: object
+description: A minimal user identity, as returned in follower/following lists.
+required:
+  - id
+  - username
+  - profileImage
+properties:
+  id:
+    type: string
+    format: uuid
+  username:
+    type: string
+  profileImage:
+    type:
+      - string
+      - 'null'
+    description: Always a resolved, fetchable URL, or null. Never a raw storage key.

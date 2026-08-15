@@ -1,0 +1,52 @@
+post:
+  operationId: createPost
+  summary: Create a post
+  description: >-
+    A post always documents cooking a recipe: `recipeId` is required and
+    must reference an existing recipe. `imageKeys` takes 1 to 10 storage
+    keys, each under the caller's own upload prefix and each verified
+    against storage before the post is created.
+  tags: [Posts]
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/CreatePostRequest.yaml'
+  responses:
+    '201':
+      description: The created post.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Post.yaml'
+    '400':
+      description: An imageKeys entry does not belong to the caller, or was never uploaded to storage, or fails the size/type/magic-number check.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Image keys must belong to the caller
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      description: Unknown recipeId.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Recipe not found
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

@@ -1,0 +1,52 @@
+type: object
+description: A recipe card as shown in listings (search results, a user's recipes, etc). No ingredients, instructions or nutrition — see RecipeDetail for the full resource.
+required:
+  - id
+  - title
+  - description
+  - createdAt
+  - updatedAt
+  - owner
+  - categories
+  - imageUrl
+properties:
+  id:
+    type: string
+    format: uuid
+  title:
+    type: string
+  description:
+    type: string
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time
+  owner:
+    type: object
+    required: [id, username, profileImage]
+    properties:
+      id:
+        type: string
+        format: uuid
+      username:
+        type: string
+      profileImage:
+        type:
+          - string
+          - 'null'
+  categories:
+    type: array
+    items:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+  imageUrl:
+    type: string
+    format: uri
+    description: Always a resolved, fetchable URL. The raw imageKey is never returned.

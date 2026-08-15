@@ -1,0 +1,19 @@
+type: object
+description: One ingredient line as returned in RecipeDetail (not the create/update input shape, which sends productId instead of the resolved product).
+required:
+  - id
+  - quantity
+  - unit
+  - product
+properties:
+  id:
+    type: string
+    format: uuid
+  quantity:
+    type: number
+    exclusiveMinimum: 0
+  unit:
+    type: string
+    enum: [GRAM, KILOGRAM, MILLILITRE, LITRE, CUP, TABLESPOON, TEASPOON, PIECE]
+  product:
+    $ref: './Product.yaml'

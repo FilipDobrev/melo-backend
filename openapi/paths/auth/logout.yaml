@@ -1,0 +1,28 @@
+post:
+  operationId: logout
+  summary: Log out
+  description: >-
+    Revokes the given refresh token, ending that one session. Idempotent
+    and does not reveal whether the token existed: an unknown token, a
+    token belonging to another user, or an already-revoked token are all
+    silent no-ops that still return 204.
+  tags: [Auth]
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/RefreshTokenRequest.yaml'
+  responses:
+    '204':
+      description: Session ended (or already was).
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

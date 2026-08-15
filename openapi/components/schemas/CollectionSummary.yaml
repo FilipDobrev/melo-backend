@@ -1,0 +1,19 @@
+type: object
+description: A user-owned folder inside the cookbook.
+required:
+  - id
+  - name
+  - createdAt
+  - recipeCount
+properties:
+  id:
+    type: string
+    format: uuid
+  name:
+    type: string
+  createdAt:
+    type: string
+    format: date-time
+  recipeCount:
+    type: integer
+    minimum: 0

@@ -1,0 +1,25 @@
+type: object
+description: Standard error envelope returned by every non-2xx response.
+required:
+  - error
+properties:
+  error:
+    type: object
+    required:
+      - code
+      - message
+    properties:
+      code:
+        type: string
+        description: Machine-readable error code, e.g. `NOT_FOUND`.
+        example: NOT_FOUND
+      message:
+        type: string
+        description: Human-readable explanation, safe to show to a user.
+      details:
+        description: Optional structured detail about the failure. Shape varies by code.
+      requestId:
+        type: string
+        description: >-
+          Present only on 5xx responses. Matches the `X-Request-Id` response
+          header and the id in the server's log line for this request.
