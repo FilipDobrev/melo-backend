@@ -2,7 +2,7 @@ import { BadRequestError } from '../lib/errors';
 import * as userService from '../services/user.service';
 import type { MeUser, PublicProfile, PublicUser } from '../services/user.service';
 import type { CreateUploadUrlResult } from '../services/storage.service';
-import type { AvatarUploadUrlInput, SearchUsersQuery, UpdateMeInput } from '../dto/user.dto';
+import type { AvatarUploadUrlInput, DeleteMeInput, SearchUsersQuery, UpdateMeInput } from '../dto/user.dto';
 import type { Page } from '../lib/pagination';
 import type {
   AuthorizedRequest,
@@ -24,6 +24,21 @@ export async function updateMe(
 ): Promise<void> {
   const user = await userService.updateMe(req.userId, req.body);
   res.status(200).json(user);
+}
+
+/** Requests deletion of the caller's own account, after verifying their password. Responds 204. */
+export async function deleteMe(
+  req: AuthorizedRequest<DeleteMeInput>,
+  res: TypedResponse<void>,
+): Promise<void> {
+  await userService.deleteMe(req.userId, req.body.password);
+  res.status(204).send();
+}
+
+/** Cancels a pending deletion of the caller's own account. Responds 204. */
+export async function restoreMe(req: AuthorizedRequest, res: TypedResponse<void>): Promise<void> {
+  await userService.restoreMe(req.userId);
+  res.status(204).send();
 }
 
 /** Gets another user's public profile. */

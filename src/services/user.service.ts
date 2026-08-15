@@ -1,8 +1,11 @@
+import bcrypt from 'bcrypt';
 import type { User } from '@prisma/client';
-import { BadRequestError, ConflictError, NotFoundError } from '../lib/errors';
+import { env } from '../config/env';
+import { BadRequestError, ConflictError, NotFoundError, UnauthenticatedError } from '../lib/errors';
 import { toPage, type Page } from '../lib/pagination';
 import { resolveProfileImage } from '../lib/profileImage';
 import * as userRepository from '../repositories/user.repository';
+import * as refreshTokenRepository from '../repositories/refreshToken.repository';
 import type { SearchUsersQuery, UpdateMeInput } from '../dto/user.dto';
 import * as storageService from './storage.service';
 import type { CreateUploadUrlResult } from './storage.service';
@@ -13,6 +16,12 @@ export interface MeUser {
   email: string;
   profileImage: string | null;
   createdAt: Date;
+  /** When the caller requested account deletion; null for an active account. */
+  deletionRequestedAt: Date | null;
+  /** The date the purge script becomes eligible to permanently delete this
+   * account, so the client can show "deleted on <date> unless you cancel".
+   * Null for an active account. */
+  purgeAt: Date | null;
 }
 
 export interface PublicUser {
@@ -36,7 +45,16 @@ export function toMeUser(user: User): MeUser {
     email: user.email,
     profileImage: resolveProfileImage(user.profileImage),
     createdAt: user.createdAt,
+    deletionRequestedAt: user.deletionRequestedAt,
+    purgeAt: user.deletionRequestedAt ? purgeDateFor(user.deletionRequestedAt) : null,
   };
+}
+
+/** The purge script treats a request older than this as eligible for good. */
+function purgeDateFor(deletionRequestedAt: Date): Date {
+  return new Date(
+    deletionRequestedAt.getTime() + env.ACCOUNT_DELETION_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000,
+  );
 }
 
 export function toPublicUser(user: userRepository.PublicUserRow): PublicUser {
@@ -53,6 +71,49 @@ export async function getMe(userId: string): Promise<MeUser> {
   const user = await userRepository.findById(userId);
   if (!user) throw new NotFoundError('User not found');
   return toMeUser(user);
+}
+
+/**
+ * Requests account deletion: starts the grace period and logs the account
+ * out everywhere. Nothing is destroyed yet - scripts/purge-deleted-users.ts
+ * does that once the grace period elapses.
+ * @throws {NotFoundError} if the user does not exist.
+ * @throws {UnauthenticatedError} if `password` does not match the account's
+ * password hash. A valid access token alone is deliberately not enough here:
+ * tokens can be stolen and still work for up to their TTL, so destroying an
+ * account requires proving the password one more time.
+ */
+export async function deleteMe(userId: string, password: string): Promise<void> {
+  const user = await userRepository.findById(userId);
+  if (!user) throw new NotFoundError('User not found');
+
+  const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+  if (!passwordMatches) throw new UnauthenticatedError('Incorrect password');
+
+  await userRepository.setDeletionRequested(userId, new Date());
+  await refreshTokenRepository.revokeAllActiveForUser(userId);
+}
+
+/**
+ * Cancels a pending deletion, restoring the account to normal. Only valid
+ * while still inside the grace period - once it has elapsed the account is
+ * either already purged (a 404, since the row is gone) or about to be, so
+ * cancelling is no longer honoured.
+ * @throws {NotFoundError} if the user does not exist.
+ * @throws {ConflictError} if the account is not pending deletion, or its
+ * grace period has already elapsed.
+ */
+export async function restoreMe(userId: string): Promise<void> {
+  const user = await userRepository.findById(userId);
+  if (!user) throw new NotFoundError('User not found');
+  if (!user.deletionRequestedAt) {
+    throw new ConflictError('Account is not pending deletion');
+  }
+  if (purgeDateFor(user.deletionRequestedAt) <= new Date()) {
+    throw new ConflictError('The grace period for this account has already elapsed');
+  }
+
+  await userRepository.clearDeletionRequested(userId);
 }
 
 const LEGACY_PROFILE_IMAGE_URL_PATTERN = /^https?:\/\//i;

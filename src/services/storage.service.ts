@@ -1,5 +1,13 @@
 import crypto from 'node:crypto';
-import { GetObjectCommand, HeadObjectCommand, NotFound, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  NotFound,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../config/env';
 import { BadRequestError } from '../lib/errors';
@@ -164,6 +172,56 @@ export async function verifyUploadedImage(storageKey: string): Promise<void> {
       contentType,
     });
   }
+}
+
+// S3's DeleteObjects accepts at most 1000 keys per call.
+const DELETE_BATCH_SIZE = 1000;
+
+/**
+ * Deletes every object under `prefix` (e.g. `posts/<userId>/`), used by the account purge script
+ * to remove a deleted user's stored images. `keep`, when given, is a set of exact keys to skip -
+ * needed because a reassigned recipe's image stays physically under the original owner's
+ * `recipes/<ownerId>/` prefix even after the recipe itself is transferred to the tombstone
+ * account, so that key must not be deleted along with the rest of the prefix.
+ *
+ * Lists in pages (S3 caps ListObjectsV2 at 1000 keys per page) and deletes in batches of up to
+ * 1000 keys, which is also DeleteObjects' own limit. Safe to call on a prefix with nothing under
+ * it, and safe to re-run: a key that no longer exists is simply not returned by the list and
+ * never submitted for deletion.
+ * @returns The number of objects actually deleted.
+ */
+export async function deleteByPrefix(prefix: string, keep: ReadonlySet<string> = new Set()): Promise<number> {
+  let deletedCount = 0;
+  let continuationToken: string | undefined;
+
+  do {
+    const listed = await s3Client.send(
+      new ListObjectsV2Command({
+        Bucket: env.S3_BUCKET,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      }),
+    );
+
+    const keys = (listed.Contents ?? [])
+      .map((object) => object.Key)
+      .filter((key): key is string => key !== undefined && !keep.has(key));
+
+    for (let i = 0; i < keys.length; i += DELETE_BATCH_SIZE) {
+      const batch = keys.slice(i, i + DELETE_BATCH_SIZE);
+      await s3Client.send(
+        new DeleteObjectsCommand({
+          Bucket: env.S3_BUCKET,
+          Delete: { Objects: batch.map((Key) => ({ Key })) },
+        }),
+      );
+      deletedCount += batch.length;
+    }
+
+    continuationToken = listed.IsTruncated ? listed.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return deletedCount;
 }
 
 /**

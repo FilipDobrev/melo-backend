@@ -22,6 +22,12 @@ export const avatarUploadUrlSchema = z.object({
 });
 export type AvatarUploadUrlInput = z.infer<typeof avatarUploadUrlSchema>;
 
+/** Body for DELETE /users/me: password re-verification before scheduling deletion. */
+export const deleteMeSchema = z.object({
+  password: z.string().min(1),
+});
+export type DeleteMeInput = z.infer<typeof deleteMeSchema>;
+
 export const userIdParamsSchema = z.object({
   userId: z.string().uuid(),
 });

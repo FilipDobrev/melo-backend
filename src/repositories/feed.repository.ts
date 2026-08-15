@@ -21,7 +21,13 @@ export function listFeed(
   db: Db = prisma,
 ): Promise<PostCardRow[]> {
   return db.post.findMany({
-    where: { OR: [{ owner: { followers: { some: { followerId } } } }, { ownerId: followerId }] },
+    // A pending-deletion author's posts are excluded from the feed, same as
+    // every other listing - including the viewer's own feed if the viewer
+    // themselves is pending deletion.
+    where: {
+      owner: { deletionRequestedAt: null },
+      OR: [{ owner: { followers: { some: { followerId } } } }, { ownerId: followerId }],
+    },
     select: POST_CARD_SELECT,
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,

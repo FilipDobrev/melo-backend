@@ -44,6 +44,11 @@ const envSchema = z.object({
       }
     }),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  /**
+   * Days a soft-deleted account stays recoverable (POST /users/me/restore)
+   * before scripts/purge-deleted-users.ts is eligible to purge it for good.
+   */
+  ACCOUNT_DELETION_GRACE_PERIOD_DAYS: z.coerce.number().int().positive().default(30),
 
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
   /**

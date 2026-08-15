@@ -7,6 +7,7 @@ import { uploadUrlRateLimiter } from '../middleware/rateLimit';
 import * as userController from '../controllers/user.controller';
 import {
   avatarUploadUrlSchema,
+  deleteMeSchema,
   searchUsersQuerySchema,
   updateMeSchema,
   userIdParamsSchema,
@@ -31,6 +32,8 @@ userRouter.use(userRecipeRouter);
 
 userRouter.get('/me', ...authed(userController.getMe));
 userRouter.patch('/me', validate({ body: updateMeSchema }), ...authed(userController.updateMe));
+userRouter.delete('/me', validate({ body: deleteMeSchema }), ...authed(userController.deleteMe));
+userRouter.post('/me/restore', ...authed(userController.restoreMe));
 
 // Literal path, so it must be registered before `/:userId`, or express
 // would swallow it as a userId lookup instead. Mirrors the images/upload-url

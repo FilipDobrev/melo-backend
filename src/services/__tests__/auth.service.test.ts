@@ -45,6 +45,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     email: 'alice@example.com',
     passwordHash: 'stored-hash',
     profileImage: null,
+    deletionRequestedAt: null,
     createdAt: new Date('2024-01-01T00:00:00.000Z'),
     updatedAt: new Date('2024-01-01T00:00:00.000Z'),
     ...overrides,
@@ -112,6 +113,8 @@ describe('auth.service', () => {
         email: 'alice@example.com',
         profileImage: null,
         createdAt: makeUser().createdAt,
+        deletionRequestedAt: null,
+        purgeAt: null,
       });
       expect(result.user).not.toHaveProperty('passwordHash');
     });

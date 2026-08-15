@@ -1,0 +1,33 @@
+post:
+  operationId: restoreMe
+  summary: Cancel a pending account deletion
+  description: >-
+    Clears `deletionRequestedAt`, returning the account to normal. Only
+    valid while still inside the grace period
+    (`ACCOUNT_DELETION_GRACE_PERIOD_DAYS`) - calling it on an account that
+    is not pending deletion, or whose grace period has already elapsed, is
+    a 409. No request body.
+  tags: [Users]
+  security:
+    - bearerAuth: []
+  responses:
+    '204':
+      description: Deletion cancelled; the account and its content are visible again.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '409':
+      description: The account is not pending deletion, or its grace period has already elapsed.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: CONFLICT
+              message: Account is not pending deletion
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
