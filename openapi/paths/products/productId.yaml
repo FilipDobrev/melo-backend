@@ -1,0 +1,21 @@
+get:
+  operationId: getProductById
+  summary: Get a product
+  description: Fully public.
+  tags: [Products]
+  security: []
+  parameters:
+    - $ref: '../../components/parameters/productId.yaml'
+  responses:
+    '200':
+      description: The product.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Product.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

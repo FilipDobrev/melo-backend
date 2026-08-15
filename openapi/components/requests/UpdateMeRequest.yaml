@@ -1,0 +1,20 @@
+type: object
+description: Any subset of the fields. Omit a key to leave it unchanged.
+properties:
+  username:
+    type: string
+    minLength: 3
+    maxLength: 30
+    description: Must be unique.
+  profileImage:
+    type:
+      - string
+      - 'null'
+    minLength: 1
+    maxLength: 500
+    description: >-
+      A storage key under the caller's own `avatars/{userId}/` prefix
+      (obtained from POST /users/me/avatar/upload-url), or, TRANSITIONALLY,
+      a plain http(s) URL — a deprecated legacy form kept working only
+      until the frontend is rebuilt to always use the upload flow. `null`
+      clears the avatar. Omitting the key leaves it unchanged.

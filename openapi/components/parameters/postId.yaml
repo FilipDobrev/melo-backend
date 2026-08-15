@@ -1,0 +1,7 @@
+name: postId
+in: path
+description: Id of the target post.
+required: true
+schema:
+  type: string
+  format: uuid

@@ -1,0 +1,27 @@
+get:
+  operationId: getPublicProfile
+  summary: Get a user's public profile
+  description: >-
+    Auth is optional. `isFollowing` is present only when the caller is
+    authenticated and viewing someone other than themselves — omitted
+    entirely (never sent as `false`) for an anonymous viewer or when
+    viewing your own profile.
+  tags: [Users]
+  security:
+    - {}
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/userId.yaml'
+  responses:
+    '200':
+      description: The user's public profile.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/UserProfile.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

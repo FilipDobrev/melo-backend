@@ -1,0 +1,26 @@
+get:
+  operationId: listFollowing
+  summary: List the users a user follows
+  description: >-
+    Paginated. Auth is optional but does not affect the response — there is
+    no personalisation to apply. No existence check is performed on
+    `userId`: an unknown user simply returns an empty page.
+  tags: [Users]
+  security: []
+  parameters:
+    - $ref: '../../components/parameters/userId.yaml'
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+  responses:
+    '200':
+      description: A page of users this user follows.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/UserSummaryPage.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

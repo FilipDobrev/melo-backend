@@ -1,0 +1,67 @@
+patch:
+  operationId: renameCollection
+  summary: Rename a collection
+  description: Owner only. Not a partial update - `name` is required.
+  tags: [Collections]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/collectionId.yaml'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/UpdateCollectionRequest.yaml'
+  responses:
+    '200':
+      description: The renamed collection.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/CollectionSummary.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '409':
+      description: The caller already has a different collection with this name.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: CONFLICT
+              message: Resource already exists
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+delete:
+  operationId: deleteCollection
+  summary: Delete a collection
+  description: Owner only. Does not unsave the collection's recipes from the cookbook.
+  tags: [Collections]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/collectionId.yaml'
+  responses:
+    '204':
+      description: Collection deleted.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

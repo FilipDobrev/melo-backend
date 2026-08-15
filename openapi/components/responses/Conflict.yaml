@@ -1,0 +1,9 @@
+description: The request conflicts with existing state (e.g. duplicate name, already following, already saved).
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'
+    example:
+      error:
+        code: CONFLICT
+        message: Resource already exists

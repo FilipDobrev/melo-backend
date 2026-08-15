@@ -1,0 +1,16 @@
+type: object
+description: One ingredient line as sent on recipe create/update. Sends productId rather than the resolved product returned in RecipeIngredient.
+required:
+  - productId
+  - quantity
+  - unit
+properties:
+  productId:
+    type: string
+    format: uuid
+  quantity:
+    type: number
+    exclusiveMinimum: 0
+  unit:
+    type: string
+    enum: [GRAM, KILOGRAM, MILLILITRE, LITRE, CUP, TABLESPOON, TEASPOON, PIECE]

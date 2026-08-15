@@ -1,0 +1,9 @@
+description: Missing, invalid, or expired access token.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'
+    example:
+      error:
+        code: UNAUTHENTICATED
+        message: Authentication required

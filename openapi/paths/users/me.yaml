@@ -1,0 +1,84 @@
+get:
+  operationId: getMe
+  summary: Get own profile
+  description: Returns the caller's own profile, including their email — never exposed on any other endpoint.
+  tags: [Users]
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: The caller's own profile.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/MeUser.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+patch:
+  operationId: updateMe
+  summary: Update own profile
+  description: >-
+    Accepts any subset of the body; an absent key leaves that field
+    unchanged. `username`, when present, must be unique (409 if taken).
+    `profileImage` accepts either a storage key under the caller's own
+    `avatars/{userId}/` prefix (from POST /users/me/avatar/upload-url,
+    verified against storage) or, TRANSITIONALLY, a plain http(s) URL — a
+    deprecated legacy form accepted unchecked, kept working only until the
+    frontend is rebuilt to always use the upload flow. Send `null` to clear
+    the avatar. The response's `profileImage` is always a resolved,
+    fetchable URL or null, regardless of which form was sent.
+  tags: [Users]
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/UpdateMeRequest.yaml'
+  responses:
+    '200':
+      description: The updated profile.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/MeUser.yaml'
+    '400':
+      description: >-
+        The storage-key form of profileImage does not belong to the
+        caller's own avatar prefix, was never uploaded, or fails the
+        size/type/magic-number check. Does not apply to the legacy URL
+        form, which is not checked.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Avatar image key must belong to the caller
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '409':
+      description: The requested username is already taken.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: CONFLICT
+              message: Username is already taken
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

@@ -1,0 +1,21 @@
+type: object
+description: New account credentials.
+required:
+  - username
+  - email
+  - password
+properties:
+  username:
+    type: string
+    minLength: 3
+    maxLength: 30
+    description: Must be unique. Trimmed.
+  email:
+    type: string
+    format: email
+    description: Must be unique. Matched case-insensitively; stored lowercased.
+  password:
+    type: string
+    minLength: 8
+    maxLength: 72
+    description: Hashed with bcrypt; never stored or returned in plaintext.

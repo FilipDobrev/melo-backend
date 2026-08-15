@@ -1,0 +1,116 @@
+get:
+  operationId: getPost
+  summary: Get a post
+  description: >-
+    Returns a post's detail, including its reaction summary and comment
+    count. Auth is optional: an authenticated caller sees their own
+    reaction (`reactions.mine`) and whether they have saved the linked
+    recipe (`recipe.isSaved`); an anonymous caller sees the same post with
+    those personalised fields at their default (`mine: null`, `isSaved: false`).
+  tags: [Posts]
+  security:
+    - {}
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/postId.yaml'
+  responses:
+    '200':
+      description: The post.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Post.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+patch:
+  operationId: updatePost
+  summary: Update a post
+  description: >-
+    Owner only. Accepts any subset of the request body. `caption` is
+    three-state: absent leaves it untouched, `null` clears it, a string
+    sets it. `recipeId`, when present, must reference an existing recipe
+    and stays required on the post — this only changes which recipe it
+    links to. `imageKeys`, when present, replaces the whole image set
+    wholesale in the given order (not a diff): re-send the keys of any
+    existing images the caller wants to keep. Every key, including
+    already-attached ones, is re-verified against storage.
+  tags: [Posts]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/postId.yaml'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/UpdatePostRequest.yaml'
+  responses:
+    '200':
+      description: The updated post.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Post.yaml'
+    '400':
+      description: >-
+        An imageKeys entry does not belong to the caller, or was never
+        uploaded to storage, or fails the size/type/magic-number check.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Image was never uploaded to storage
+              details:
+                storageKey: posts/3f6a1e2c-9b7d-4c3a-8f1e-2b6c9a0d7e11/f1a2.jpg
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      description: Unknown post, or unknown recipeId in the request body.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Recipe not found
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+delete:
+  operationId: deletePost
+  summary: Delete a post
+  description: Owner only. Deletes the post and its images, comments and reactions.
+  tags: [Posts]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/postId.yaml'
+  responses:
+    '204':
+      description: Post deleted.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

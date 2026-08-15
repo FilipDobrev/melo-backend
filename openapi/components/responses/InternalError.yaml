@@ -1,0 +1,10 @@
+description: Unexpected server error. `error.requestId` is present — hand it to support to find the exact log entry.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'
+    example:
+      error:
+        code: INTERNAL
+        message: Internal server error
+        requestId: 3f6a1e2c-9b7d-4c3a-8f1e-2b6c9a0d7e11

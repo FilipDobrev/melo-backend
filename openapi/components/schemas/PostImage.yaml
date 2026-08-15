@@ -1,0 +1,18 @@
+type: object
+description: >-
+  storageKey is the raw object key behind url, returned so a
+  PATCH /posts/{postId} caller can re-send the keys of images it wants to
+  keep (imageKeys replaces the whole set wholesale, it is not a diff).
+required:
+  - id
+  - url
+  - storageKey
+properties:
+  id:
+    type: string
+    format: uuid
+  url:
+    type: string
+    format: uri
+  storageKey:
+    type: string

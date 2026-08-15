@@ -1,0 +1,32 @@
+type: object
+required:
+  - id
+  - postId
+  - content
+  - createdAt
+  - author
+properties:
+  id:
+    type: string
+    format: uuid
+  postId:
+    type: string
+    format: uuid
+  content:
+    type: string
+  createdAt:
+    type: string
+    format: date-time
+  author:
+    type: object
+    required: [id, username, profileImage]
+    properties:
+      id:
+        type: string
+        format: uuid
+      username:
+        type: string
+      profileImage:
+        type:
+          - string
+          - 'null'

@@ -1,0 +1,9 @@
+description: Authenticated, but not permitted to perform this action (e.g. not the resource owner).
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'
+    example:
+      error:
+        code: FORBIDDEN
+        message: You do not have access to this resource

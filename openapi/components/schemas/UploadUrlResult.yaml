@@ -1,0 +1,16 @@
+type: object
+description: >-
+  Returned by every presigned-upload-url endpoint (posts, recipes, avatar).
+  The client must PUT to uploadUrl with exactly the declared contentType and
+  contentLength, then reference storageKey in the following create/update call.
+required:
+  - uploadUrl
+  - storageKey
+properties:
+  uploadUrl:
+    type: string
+    format: uri
+    description: Presigned S3 PUT URL, valid for 5 minutes.
+  storageKey:
+    type: string
+    description: Object key to reference in the subsequent create/update request.

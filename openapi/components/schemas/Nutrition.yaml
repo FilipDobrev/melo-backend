@@ -1,0 +1,20 @@
+type: object
+description: Computed nutrition totals for a recipe (whole recipe, not per serving).
+required:
+  - calories
+  - protein
+  - carbs
+  - fat
+properties:
+  calories:
+    type: number
+    minimum: 0
+  protein:
+    type: number
+    minimum: 0
+  carbs:
+    type: number
+    minimum: 0
+  fat:
+    type: number
+    minimum: 0

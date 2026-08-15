@@ -1,0 +1,21 @@
+get:
+  operationId: listCategories
+  summary: List categories
+  description: >-
+    The full seeded list of recipe categories. Not paginated — the set is
+    small and fixed. Fully public.
+  tags: [Categories]
+  security: []
+  responses:
+    '200':
+      description: Every category.
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../../components/schemas/Category.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

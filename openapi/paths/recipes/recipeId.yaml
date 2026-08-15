@@ -1,0 +1,97 @@
+get:
+  operationId: getRecipe
+  summary: Get a recipe
+  description: >-
+    Full recipe detail including computed nutrition totals. Auth is
+    optional: an authenticated caller sees whether they have saved this
+    recipe (`isSaved`); an anonymous caller always sees `isSaved: false`.
+  tags: [Recipes]
+  security:
+    - {}
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/recipeId.yaml'
+  responses:
+    '200':
+      description: The recipe.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/RecipeDetail.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+patch:
+  operationId: updateRecipe
+  summary: Update a recipe
+  description: >-
+    Owner only. Accepts any subset of the create fields. When present,
+    `ingredients` and `categorySlugs` each replace the whole set wholesale
+    (not a diff) inside a transaction.
+  tags: [Recipes]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/recipeId.yaml'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/UpdateRecipeRequest.yaml'
+  responses:
+    '200':
+      description: The updated recipe.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/RecipeDetail.yaml'
+    '400':
+      description: An unknown category slug, an unknown productId, or an imageKey that fails ownership/preset/storage verification.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Unknown productId "3f6a1e2c-9b7d-4c3a-8f1e-2b6c9a0d7e11"
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+delete:
+  operationId: deleteRecipe
+  summary: Delete a recipe
+  description: Owner only.
+  tags: [Recipes]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/recipeId.yaml'
+  responses:
+    '204':
+      description: Recipe deleted.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

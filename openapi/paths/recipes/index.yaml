@@ -1,0 +1,93 @@
+get:
+  operationId: listRecipes
+  summary: List recipes
+  description: >-
+    Public recipe search/listing. Never personalised - the response never
+    includes `isSaved` (that only appears on RecipeDetail). `categorySlugs`
+    is a single comma-separated string, not a repeated query parameter; a
+    recipe matches if it has ANY of the given categories.
+  tags: [Recipes]
+  security: []
+  parameters:
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+    - name: search
+      in: query
+      required: false
+      description: Case-insensitive substring match against title/description.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    - name: categorySlugs
+      in: query
+      required: false
+      description: Comma-separated category slugs, e.g. `?categorySlugs=breakfast,vegan`. A recipe matches if it has any of them.
+      schema:
+        type: string
+        minLength: 1
+    - name: sort
+      in: query
+      required: false
+      description: Sort order.
+      schema:
+        type: string
+        enum: [newest, oldest, popular]
+        default: newest
+        description: '`popular` orders by cookbook save count, most saved first.'
+  responses:
+    '200':
+      description: A page of recipe summaries.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/RecipeSummaryPage.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+post:
+  operationId: createRecipe
+  summary: Create a recipe
+  description: >-
+    Creates the recipe and, in the same transaction, saves it to the
+    author's own cookbook - a newly created recipe always starts out saved
+    by its author, who can unsave (and re-save) it afterwards like anyone
+    else.
+  tags: [Recipes]
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/CreateRecipeRequest.yaml'
+  responses:
+    '201':
+      description: The created recipe.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/RecipeDetail.yaml'
+    '400':
+      description: An unknown category slug, an unknown productId, or an imageKey that fails ownership/preset/storage verification.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Unknown category slug "brunch"
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

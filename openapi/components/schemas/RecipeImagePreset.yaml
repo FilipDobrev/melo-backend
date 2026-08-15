@@ -1,0 +1,15 @@
+type: object
+description: A built-in recipe image choice, returned by GET /recipes/image-presets.
+required:
+  - slug
+  - label
+  - url
+properties:
+  slug:
+    type: string
+    description: Pass as `imageKey` in the form `preset:<slug>` on create/update.
+  label:
+    type: string
+  url:
+    type: string
+    format: uri

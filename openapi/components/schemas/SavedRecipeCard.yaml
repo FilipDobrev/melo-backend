@@ -1,0 +1,47 @@
+type: object
+description: A recipe card as shown in the cookbook and inside collections. Narrower than RecipeSummary — no updatedAt.
+required:
+  - id
+  - title
+  - description
+  - createdAt
+  - owner
+  - categories
+  - imageUrl
+properties:
+  id:
+    type: string
+    format: uuid
+  title:
+    type: string
+  description:
+    type: string
+  createdAt:
+    type: string
+    format: date-time
+  owner:
+    type: object
+    required: [id, username, profileImage]
+    properties:
+      id:
+        type: string
+        format: uuid
+      username:
+        type: string
+      profileImage:
+        type:
+          - string
+          - 'null'
+  categories:
+    type: array
+    items:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+  imageUrl:
+    type: string
+    format: uri

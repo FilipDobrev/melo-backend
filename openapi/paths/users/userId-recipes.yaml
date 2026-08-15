@@ -1,0 +1,27 @@
+get:
+  operationId: listRecipesByOwner
+  summary: List a user's recipes
+  description: >-
+    Paginated. Auth has no effect on the response — RecipeSummary carries
+    no viewer-specific fields (unlike RecipeDetail's `isSaved`). No
+    existence check is performed on `userId`: an unknown user simply
+    returns an empty page.
+  tags: [Users]
+  security: []
+  parameters:
+    - $ref: '../../components/parameters/userId.yaml'
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+  responses:
+    '200':
+      description: A page of the user's recipes.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/RecipeSummaryPage.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

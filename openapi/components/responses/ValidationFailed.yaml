@@ -1,0 +1,12 @@
+description: Request body or query failed schema validation.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'
+    example:
+      error:
+        code: VALIDATION_FAILED
+        message: Validation failed
+        details:
+          fieldErrors:
+            username: ["String must contain at least 3 character(s)"]

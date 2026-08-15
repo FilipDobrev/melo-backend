@@ -4,3 +4,5 @@ dist/
 .env.*
 !.env.example
 *.log
+openapi/bundled.yaml
+openapi/docs.html

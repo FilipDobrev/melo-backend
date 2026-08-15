@@ -1,0 +1,10 @@
+description: A page of user summaries.
+allOf:
+  - $ref: './PaginationFields.yaml'
+  - type: object
+    required: [items]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './UserSummary.yaml'

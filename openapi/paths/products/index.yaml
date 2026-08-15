@@ -1,0 +1,75 @@
+get:
+  operationId: listProducts
+  summary: List products
+  description: Paginated. `search`, when present, filters by name. Fully public.
+  tags: [Products]
+  security: []
+  parameters:
+    - name: search
+      in: query
+      required: false
+      description: Filters results by name.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+  responses:
+    '200':
+      description: A page of products.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/ProductPage.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+post:
+  operationId: createProduct
+  summary: Create a product
+  description: >-
+    Rejects a duplicate name with 409. `densityGPerMl` and `gramsPerPiece`
+    are optional; omitting them (or sending null) means density/piece
+    conversion is unsupported for this product. The response includes
+    every stored field, including `source` (always `"manual"` for
+    API-created products) and `externalId` (always null here — only set
+    for products seeded from an external nutrition database).
+  tags: [Products]
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/CreateProductRequest.yaml'
+  responses:
+    '201':
+      description: The created product.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Product.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '409':
+      description: A product with this name already exists.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: CONFLICT
+              message: Product "Chicken breast" already exists
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

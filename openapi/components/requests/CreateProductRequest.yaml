@@ -1,0 +1,36 @@
+type: object
+description: Nutrition values are per 100 g and must be finite, non-negative numbers.
+required:
+  - name
+  - caloriesPer100g
+  - proteinPer100g
+  - carbsPer100g
+  - fatPer100g
+properties:
+  name:
+    type: string
+    minLength: 1
+    maxLength: 100
+    description: Must be unique.
+  caloriesPer100g:
+    type: number
+    minimum: 0
+  proteinPer100g:
+    type: number
+    minimum: 0
+  carbsPer100g:
+    type: number
+    minimum: 0
+  fatPer100g:
+    type: number
+    minimum: 0
+  densityGPerMl:
+    type:
+      - number
+      - 'null'
+    description: Grams per millilitre, used to convert volume units to grams. Omit or send null when unknown; water density is then assumed.
+  gramsPerPiece:
+    type:
+      - number
+      - 'null'
+    description: Required to later measure this product by the PIECE unit. Omit or send null if unsupported.

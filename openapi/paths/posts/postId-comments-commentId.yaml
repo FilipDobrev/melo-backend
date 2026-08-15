@@ -1,0 +1,26 @@
+delete:
+  operationId: deleteComment
+  summary: Delete a comment
+  description: >-
+    Permitted for either the comment's own author or the owner of the post
+    it's on (moderating their own post) - not guessable from the URL alone,
+    so callers should not assume author-only. Anyone else gets 403.
+  tags: [Posts]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/postId.yaml'
+    - $ref: '../../components/parameters/commentId.yaml'
+  responses:
+    '204':
+      description: Comment deleted.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

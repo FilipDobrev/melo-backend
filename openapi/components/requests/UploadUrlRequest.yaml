@@ -1,0 +1,17 @@
+type: object
+description: >-
+  Shared shape for every presigned-upload-url endpoint (posts, recipes,
+  avatar). contentType and contentLength are part of the presigned
+  signature: the subsequent PUT must send exactly those bytes and that
+  content type.
+required:
+  - contentType
+  - contentLength
+properties:
+  contentType:
+    type: string
+    description: 'One of: image/jpeg, image/png, image/webp.'
+  contentLength:
+    type: integer
+    minimum: 1
+    description: Exact byte size of the file to be uploaded. Measure it, do not estimate. Rejected above the 10 MB limit.

@@ -1,0 +1,9 @@
+apis:
+  melo@v1:
+    root: openapi/openapi.yaml
+extends:
+  - recommended
+rules:
+  # The only server this API currently has is local dev; the recommended
+  # ruleset assumes public specs and flags that as a placeholder. Not one.
+  no-server-example.com: off

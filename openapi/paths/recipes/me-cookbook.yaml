@@ -1,0 +1,32 @@
+get:
+  operationId: listCookbook
+  summary: List the caller's cookbook
+  description: The caller's saved recipes, most recently saved first.
+  tags: [Recipes]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+    - name: categorySlugs
+      in: query
+      required: false
+      description: Comma-separated category slugs. A recipe matches if it has any of them.
+      schema:
+        type: string
+        minLength: 1
+  responses:
+    '200':
+      description: A page of saved recipe cards.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/SavedRecipeCardPage.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

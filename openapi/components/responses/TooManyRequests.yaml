@@ -1,0 +1,9 @@
+description: Rate limit exceeded for this endpoint or the whole API. See API.md's Rate limiting section for the current ceilings.
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/Error.yaml'
+    example:
+      error:
+        code: TOO_MANY_REQUESTS
+        message: Too many requests, please try again later

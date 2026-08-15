@@ -1,0 +1,144 @@
+openapi: 3.1.0
+info:
+  title: Melo API
+  version: '1'
+  description: >-
+    Melo's REST API. JSON only, versioned under /api/v1. `API.md` at the
+    repo root is the prose companion to this document — read it for an
+    endpoint-by-endpoint narrative; this document is the machine-readable
+    contract, meant for codegen, linting and request validation. Errors use
+    a single envelope shape — see the `Error` schema and CONVENTIONS.md.
+  license:
+    name: UNLICENSED
+    identifier: UNLICENSED
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local dev
+security:
+  - bearerAuth: []
+tags:
+  - name: Health
+    description: Liveness and readiness probes. Not versioned under /api/v1, not rate limited.
+  - name: Auth
+    description: Register, login, token refresh and logout.
+  - name: Users
+    description: Profiles, avatars, follows and user discovery.
+  - name: Products
+    description: Food products with per-100g nutrition, used as recipe ingredients.
+  - name: Categories
+    description: The fixed, seeded list of recipe categories.
+  - name: Recipes
+    description: Recipes, their images, and the caller's cookbook of saved recipes.
+  - name: Collections
+    description: User-owned folders of saved recipes inside the cookbook.
+  - name: Posts
+    description: Posts documenting cooking a recipe, with reactions and comments.
+  - name: Feed
+    description: The caller's personalised feed of posts from followed users.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        Access token from /auth/register, /auth/login or /auth/refresh, sent
+        as `Authorization: Bearer <accessToken>`.
+paths:
+  # Grouped by tag, in the same order as the tags list above and API.md's
+  # section order. Within a group, order paths the way API.md's table does
+  # (collection endpoints before item endpoints). Add one line per path; do
+  # not add operations here, they live in the referenced path file.
+
+  # --- Health ---
+  /health:
+    $ref: './paths/health/health.yaml'
+  /health/ready:
+    $ref: './paths/health/ready.yaml'
+
+  # --- Auth ---
+  /auth/register:
+    $ref: './paths/auth/register.yaml'
+  /auth/login:
+    $ref: './paths/auth/login.yaml'
+  /auth/refresh:
+    $ref: './paths/auth/refresh.yaml'
+  /auth/logout:
+    $ref: './paths/auth/logout.yaml'
+
+  # --- Users ---
+  /users/me:
+    $ref: './paths/users/me.yaml'
+  /users/me/avatar/upload-url:
+    $ref: './paths/users/me-avatar-upload-url.yaml'
+  /users:
+    $ref: './paths/users/index.yaml'
+  /users/{userId}:
+    $ref: './paths/users/userId.yaml'
+  /users/{userId}/follow:
+    $ref: './paths/users/userId-follow.yaml'
+  /users/{userId}/followers:
+    $ref: './paths/users/userId-followers.yaml'
+  /users/{userId}/following:
+    $ref: './paths/users/userId-following.yaml'
+  /users/{userId}/posts:
+    $ref: './paths/users/userId-posts.yaml'
+  /users/{userId}/recipes:
+    $ref: './paths/users/userId-recipes.yaml'
+
+  # --- Products ---
+  /products:
+    $ref: './paths/products/index.yaml'
+  /products/{productId}:
+    $ref: './paths/products/productId.yaml'
+
+  # --- Categories ---
+  /categories:
+    $ref: './paths/categories/index.yaml'
+
+  # --- Recipes ---
+  /recipes:
+    $ref: './paths/recipes/index.yaml'
+  /recipes/{recipeId}:
+    $ref: './paths/recipes/recipeId.yaml'
+  /recipes/{recipeId}/save:
+    $ref: './paths/recipes/recipeId-save.yaml'
+  /recipes/images/upload-url:
+    $ref: './paths/recipes/images-upload-url.yaml'
+  /recipes/image-presets:
+    $ref: './paths/recipes/image-presets.yaml'
+  /users/me/cookbook:
+    $ref: './paths/recipes/me-cookbook.yaml'
+
+  # --- Collections ---
+  # NOTE: these live under the /users/me/collections URL prefix but belong to
+  # the Collections tag, so they are filed under paths/collections/, not
+  # paths/users/. Filenames drop the shared /users/me/collections prefix.
+  /users/me/collections:
+    $ref: './paths/collections/index.yaml'
+  /users/me/collections/{collectionId}:
+    $ref: './paths/collections/collectionId.yaml'
+  /users/me/collections/{collectionId}/recipes:
+    $ref: './paths/collections/collectionId-recipes.yaml'
+  /users/me/collections/{collectionId}/recipes/{recipeId}:
+    $ref: './paths/collections/collectionId-recipes-recipeId.yaml'
+
+  # --- Posts ---
+  /posts/images/upload-url:
+    $ref: './paths/posts/images-upload-url.yaml'
+  /posts:
+    $ref: './paths/posts/index.yaml'
+  /posts/{postId}:
+    $ref: './paths/posts/postId.yaml'
+  /posts/{postId}/images/{imageId}:
+    $ref: './paths/posts/postId-images-imageId.yaml'
+  /posts/{postId}/reactions:
+    $ref: './paths/posts/postId-reactions.yaml'
+  /posts/{postId}/comments:
+    $ref: './paths/posts/postId-comments.yaml'
+  /posts/{postId}/comments/{commentId}:
+    $ref: './paths/posts/postId-comments-commentId.yaml'
+
+  # --- Feed ---
+  /feed:
+    $ref: './paths/feed/index.yaml'

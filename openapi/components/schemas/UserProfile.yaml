@@ -1,0 +1,19 @@
+description: A public profile with follower/following counts, as returned by GET /users/{userId}.
+allOf:
+  - $ref: './PublicUser.yaml'
+  - type: object
+    required:
+      - followerCount
+      - followingCount
+    properties:
+      followerCount:
+        type: integer
+        minimum: 0
+      followingCount:
+        type: integer
+        minimum: 0
+      isFollowing:
+        type: boolean
+        description: >-
+          Present only when the request was authenticated and the caller is
+          not viewing their own profile. Absent otherwise (never `null`).

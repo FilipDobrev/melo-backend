@@ -1,0 +1,29 @@
+get:
+  operationId: listUserPosts
+  summary: List a user's posts
+  description: >-
+    Paginated. Auth is optional and personalises each post the same way as
+    GET /posts/{postId} (`reactions.mine`, `recipe.isSaved`). No existence
+    check is performed on `userId`: an unknown user simply returns an empty
+    page.
+  tags: [Users]
+  security:
+    - {}
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/userId.yaml'
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+  responses:
+    '200':
+      description: A page of the user's posts.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/PostPage.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

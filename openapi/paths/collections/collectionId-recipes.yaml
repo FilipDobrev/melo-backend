@@ -1,0 +1,82 @@
+get:
+  operationId: listCollectionRecipes
+  summary: List a collection's recipes
+  description: Owner only.
+  tags: [Collections]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/collectionId.yaml'
+    - $ref: '../../components/parameters/cursor.yaml'
+    - $ref: '../../components/parameters/limit.yaml'
+  responses:
+    '200':
+      description: A page of saved recipe cards.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/SavedRecipeCardPage.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'
+
+post:
+  operationId: addRecipeToCollection
+  summary: Add a recipe to a collection
+  description: >-
+    Owner only. Also saves the recipe to the caller's cookbook if it was not
+    saved already, in the same transaction - a collection is a view over
+    the cookbook, so adding to a collection is always a superset of saving.
+  tags: [Collections]
+  security:
+    - bearerAuth: []
+  parameters:
+    - $ref: '../../components/parameters/collectionId.yaml'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/AddCollectionRecipeRequest.yaml'
+  responses:
+    '204':
+      description: Recipe added to the collection.
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '403':
+      $ref: '../../components/responses/Forbidden.yaml'
+    '404':
+      description: Unknown collection, or unknown recipeId in the request body.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Recipe not found
+    '409':
+      description: This recipe is already in the collection.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: CONFLICT
+              message: Resource already exists
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

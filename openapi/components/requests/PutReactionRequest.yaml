@@ -1,0 +1,13 @@
+type: object
+description: >-
+  Upserts the caller's own reaction on the post. A second call with a
+  different emoji replaces the caller's previous reaction rather than adding
+  a second one.
+required:
+  - emoji
+properties:
+  emoji:
+    type: string
+    minLength: 1
+    maxLength: 8
+    description: Stored and compared as-is; not validated as a genuine unicode emoji grapheme.

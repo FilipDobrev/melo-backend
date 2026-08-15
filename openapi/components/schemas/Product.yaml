@@ -1,0 +1,59 @@
+type: object
+description: >-
+  A food product with nutrition values per 100 g. The response includes
+  every stored field, not just the ones accepted on create — see
+  CONVENTIONS.md for the discrepancy this reflects against API.md.
+required:
+  - id
+  - name
+  - source
+  - externalId
+  - caloriesPer100g
+  - proteinPer100g
+  - carbsPer100g
+  - fatPer100g
+  - densityGPerMl
+  - gramsPerPiece
+  - createdAt
+  - updatedAt
+properties:
+  id:
+    type: string
+    format: uuid
+  name:
+    type: string
+  source:
+    type: string
+    description: Where the product data came from. `"manual"` for API-created products.
+  externalId:
+    type:
+      - string
+      - 'null'
+  caloriesPer100g:
+    type: number
+    minimum: 0
+  proteinPer100g:
+    type: number
+    minimum: 0
+  carbsPer100g:
+    type: number
+    minimum: 0
+  fatPer100g:
+    type: number
+    minimum: 0
+  densityGPerMl:
+    type:
+      - number
+      - 'null'
+    description: Grams per millilitre, used to convert volume units to grams. Null means water density is assumed.
+  gramsPerPiece:
+    type:
+      - number
+      - 'null'
+    description: Required to measure this product by the PIECE unit; null means PIECE is unsupported for it.
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time

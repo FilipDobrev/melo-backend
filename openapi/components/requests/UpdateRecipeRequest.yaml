@@ -1,0 +1,39 @@
+type: object
+description: >-
+  Any subset of the create fields. When present, `ingredients` and
+  `categorySlugs` each replace the whole set wholesale (not a diff) inside a
+  transaction; an empty `categorySlugs` array clears all categories.
+properties:
+  title:
+    type: string
+    minLength: 1
+    maxLength: 150
+  description:
+    type: string
+    minLength: 1
+    maxLength: 2000
+  instructions:
+    type: string
+    minLength: 1
+    maxLength: 10000
+  ingredients:
+    type: array
+    minItems: 1
+    items:
+      $ref: '../schemas/RecipeIngredientInput.yaml'
+    description: When present, replaces every ingredient line.
+  categorySlugs:
+    type: array
+    items:
+      type: string
+      minLength: 1
+      maxLength: 50
+    description: When present, replaces the whole category set. An empty array clears all categories.
+  imageKey:
+    type: string
+    minLength: 1
+    maxLength: 500
+    description: >-
+      Either `preset:<slug>` or a storage key under the caller's own
+      `recipes/<userId>/` prefix, re-verified against storage the same way
+      as on create. Omitted leaves the current image untouched.

@@ -1,0 +1,10 @@
+description: A page of comments.
+allOf:
+  - $ref: './PaginationFields.yaml'
+  - type: object
+    required: [items]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './Comment.yaml'

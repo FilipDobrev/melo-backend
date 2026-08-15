@@ -1,0 +1,43 @@
+post:
+  operationId: refresh
+  summary: Rotate an access/refresh token pair
+  description: >-
+    Refresh tokens are single-use and rotate: presenting one revokes it and
+    returns a new pair. Presenting a token that was already revoked is
+    treated as evidence of theft or replay, not an ordinary error — every
+    other active refresh token for that user is revoked too, ending all
+    their sessions — but the response is still a plain 401, identical to
+    any other invalid token, so an attacker learns nothing. An expired (but
+    never revoked) token is rejected the ordinary way and does not end
+    other sessions.
+  tags: [Auth]
+  security: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/requests/RefreshTokenRequest.yaml'
+  responses:
+    '200':
+      description: A fresh token pair.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/AuthTokens.yaml'
+    '401':
+      description: Unknown, expired, or already-revoked refresh token.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: UNAUTHENTICATED
+              message: Invalid or expired refresh token
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

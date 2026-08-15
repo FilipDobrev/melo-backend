@@ -1,0 +1,12 @@
+description: >-
+  A page of saved recipe cards, as returned by the cookbook and by a
+  collection's recipes.
+allOf:
+  - $ref: './PaginationFields.yaml'
+  - type: object
+    required: [items]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './SavedRecipeCard.yaml'

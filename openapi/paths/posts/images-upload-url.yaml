@@ -1,0 +1,58 @@
+post:
+  operationId: createPostImageUploadUrl
+  summary: Get a presigned post image upload URL
+  description: >-
+    Mints a presigned S3 PUT URL scoped to the caller's own `posts/<userId>/`
+    prefix. `contentType` and `contentLength` are part of the signature -
+    the subsequent PUT must send exactly those bytes and that content type,
+    or storage rejects it with a 403 the API never sees. Rate limited to a
+    tighter ceiling than the rest of the API since each call mints write
+    access to object storage (see API.md's Rate limiting section).
+  tags: [Posts]
+  security:
+    - bearerAuth: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - contentType
+            - contentLength
+          properties:
+            contentType:
+              type: string
+              enum: [image/jpeg, image/png, image/webp]
+            contentLength:
+              type: integer
+              exclusiveMinimum: 0
+              maximum: 10485760
+              description: Exact byte size the following PUT will send. Max 10 MB.
+  responses:
+    '200':
+      description: Presigned upload URL and the storage key to reference on create/update.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/UploadUrlResult.yaml'
+    '400':
+      description: Unsupported content type, or contentLength is not positive or exceeds the 10 MB limit.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: BAD_REQUEST
+              message: Unsupported image content type
+              details:
+                contentType: image/gif
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '422':
+      $ref: '../../components/responses/ValidationFailed.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

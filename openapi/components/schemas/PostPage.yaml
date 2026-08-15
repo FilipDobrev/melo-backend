@@ -1,0 +1,10 @@
+description: A page of posts.
+allOf:
+  - $ref: './PaginationFields.yaml'
+  - type: object
+    required: [items]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './Post.yaml'
