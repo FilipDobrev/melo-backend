@@ -3,10 +3,12 @@ import { env } from './config/env';
 import { logger } from './lib/logger';
 import { prisma } from './lib/prisma';
 
-/// Ceiling on graceful shutdown: if in-flight requests have not drained by
-/// then, something is stuck (a hung connection, a runaway query) and we
-/// force-exit rather than let a container's SIGKILL grace period run out
-/// silently.
+/**
+ * Ceiling on graceful shutdown: if in-flight requests have not drained by
+ * then, something is stuck (a hung connection, a runaway query) and we
+ * force-exit rather than let a container's SIGKILL grace period run out
+ * silently.
+ */
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
 const app = createApp();
@@ -16,6 +18,14 @@ const server = app.listen(env.PORT, () => {
 
 let shuttingDown = false;
 
+/**
+ * Stops accepting new connections and waits for in-flight requests to
+ * finish (`server.close`'s callback fires once they have) before
+ * disconnecting Prisma and exiting - draining first so a request in
+ * progress isn't cut off mid-response. Races that drain against
+ * {@link SHUTDOWN_TIMEOUT_MS} and force-exits if it loses, so a stuck
+ * request cannot block shutdown indefinitely.
+ */
 async function shutdown(signal: string): Promise<void> {
   // A second SIGTERM/SIGINT while we are already draining must not kick off
   // a second shutdown race against the same server/prisma handles.

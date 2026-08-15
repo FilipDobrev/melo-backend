@@ -43,13 +43,16 @@ export interface RecipeDetail extends RecipeSummary {
   isSaved: boolean;
 }
 
-/// Finds the first requested id that has no matching row among the ones
-/// actually found in the database, so the caller can report which one.
+/**
+ * Finds the first requested id that has no matching row among the ones actually found in the
+ * database, so the caller can report which one.
+ */
 export function findMissingProductId(requestedIds: string[], foundProducts: Array<{ id: string }>): string | undefined {
   const foundIds = new Set(foundProducts.map((product) => product.id));
   return requestedIds.find((id) => !foundIds.has(id));
 }
 
+/** Same as {@link findMissingProductId}, for category slugs. */
 export function findMissingCategorySlug(
   requestedSlugs: string[],
   foundCategories: Array<{ slug: string }>,
@@ -58,8 +61,10 @@ export function findMissingCategorySlug(
   return requestedSlugs.find((slug) => !foundSlugs.has(slug));
 }
 
-/// Pure mapping from the joined DB row to the API response shape, including
-/// the computed nutrition totals. No DB access, so it is directly testable.
+/**
+ * Pure mapping from the joined DB row to the API response shape, including the computed
+ * nutrition totals. No DB access, so it is directly testable.
+ */
 export function toRecipeDetail(recipe: RecipeDetailRow): RecipeDetail {
   const nutrition = recipeNutrition(
     recipe.ingredients.map((ingredient) => ({
@@ -93,6 +98,7 @@ export function toRecipeDetail(recipe: RecipeDetailRow): RecipeDetail {
   };
 }
 
+/** Pure mapping from a joined DB row to the list-view response shape (no nutrition/ingredients). */
 export function toRecipeSummary(recipe: RecipeSummaryRow): RecipeSummary {
   return {
     id: recipe.id,
@@ -129,19 +135,27 @@ export async function listRecipesByOwner(ownerId: string, query: CursorPaginatio
   return toPage(rows.map(toRecipeSummary), query.limit);
 }
 
+/**
+ * @param viewerId Undefined for an anonymous request. Passed to the repository as `''`, which
+ * never matches a real user id, so an anonymous viewer always resolves `isSaved` to false
+ * without branching the query shape.
+ * @throws {NotFoundError} if the recipe does not exist.
+ */
 export async function getRecipeDetail(recipeId: string, viewerId: string | undefined): Promise<RecipeDetail> {
-  // An empty string never matches a real user id, so an anonymous viewer
-  // always resolves isSaved to false without branching the query shape.
   const recipe = await recipeRepository.findRecipeDetail(recipeId, viewerId ?? '');
   if (!recipe) throw new NotFoundError('Recipe not found');
   return toRecipeDetail(recipe);
 }
 
-/// Verifies every referenced productId/categorySlug exists, then inserts
-/// the recipe, its ingredients, and its category assignments together.
-/// The author's own cookbook save is created in the same transaction, so a
-/// newly created recipe always shows up in its author's cookbook - the
-/// author can still unsave (and re-save) it afterwards like anyone else.
+/**
+ * Verifies every referenced productId/categorySlug exists, then inserts the recipe, its
+ * ingredients, and its category assignments together. The author's own cookbook save is created
+ * in the same transaction, so a newly created recipe always shows up in its author's cookbook -
+ * the author can still unsave (and re-save) it afterwards like anyone else.
+ * @throws {BadRequestError} if the image key is invalid (see {@link validateRecipeImageKey}), if
+ * a non-preset image key was never actually uploaded or fails verification, or if any
+ * categorySlug or productId does not exist.
+ */
 export async function createRecipe(ownerId: string, input: CreateRecipeInput): Promise<RecipeDetail> {
   if (input.imageKey !== undefined) {
     validateRecipeImageKey(input.imageKey, ownerId);
@@ -174,6 +188,11 @@ export async function createRecipe(ownerId: string, input: CreateRecipeInput): P
   });
 }
 
+/**
+ * @throws {NotFoundError} if the recipe does not exist.
+ * @throws {ForbiddenError} if the caller does not own the recipe.
+ * @throws {BadRequestError} see {@link createRecipe}.
+ */
 export async function updateRecipe(recipeId: string, viewerId: string, input: UpdateRecipeInput): Promise<RecipeDetail> {
   const existing = await recipeRepository.findRecipeOwner(recipeId);
   if (!existing) throw new NotFoundError('Recipe not found');
@@ -210,6 +229,10 @@ export async function updateRecipe(recipeId: string, viewerId: string, input: Up
   });
 }
 
+/**
+ * @throws {NotFoundError} if the recipe does not exist.
+ * @throws {ForbiddenError} if the caller does not own the recipe.
+ */
 export async function deleteRecipe(recipeId: string, viewerId: string): Promise<void> {
   const existing = await recipeRepository.findRecipeOwner(recipeId);
   if (!existing) throw new NotFoundError('Recipe not found');

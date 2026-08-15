@@ -11,7 +11,7 @@ import {
   updateCollectionSchema,
 } from '../dto/collection.dto';
 
-/// Mounted on userRouter -> /users/me/collections
+/** Mounted on userRouter -> /users/me/collections */
 export const collectionRouter = Router();
 
 collectionRouter.get('/me/collections', ...authed(collectionController.list));

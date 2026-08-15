@@ -4,6 +4,7 @@ import type { ListCookbookQuery } from '../dto/cookbook.dto';
 import type { Page } from '../lib/pagination';
 import type { AuthorizedRequest, RecipeIdParams, TypedResponse } from '../types/http';
 
+/** Saves a recipe to the caller's cookbook. Responds 204. */
 export async function save(
   req: AuthorizedRequest<void, unknown, RecipeIdParams>,
   res: TypedResponse<void>,
@@ -13,6 +14,7 @@ export async function save(
   res.status(204).send();
 }
 
+/** Removes a recipe from the caller's cookbook. Responds 204. */
 export async function remove(
   req: AuthorizedRequest<void, unknown, RecipeIdParams>,
   res: TypedResponse<void>,
@@ -22,6 +24,7 @@ export async function remove(
   res.status(204).send();
 }
 
+/** Lists the recipes saved to the caller's cookbook. */
 export async function listCookbook(
   req: AuthorizedRequest<void, ListCookbookQuery>,
   res: TypedResponse<Page<SavedRecipeCard>>,

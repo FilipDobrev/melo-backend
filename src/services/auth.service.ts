@@ -20,6 +20,10 @@ export interface RefreshResult {
   refreshToken: string;
 }
 
+/**
+ * Signs a new access token and persists a new refresh token for the user.
+ * @param db Lets the caller run this inside its own transaction (e.g. refresh's revoke+reissue).
+ */
 async function issueTokensFor(userId: string, db: Db = prisma): Promise<RefreshResult> {
   const accessToken = signAccessToken(userId);
   const issued = issueRefreshToken();
@@ -30,6 +34,10 @@ async function issueTokensFor(userId: string, db: Db = prisma): Promise<RefreshR
   return { accessToken, refreshToken: issued.token };
 }
 
+/**
+ * Creates a new account and immediately logs it in.
+ * @throws {ConflictError} if the email or username is already taken.
+ */
 export async function register(input: RegisterInput): Promise<AuthResult> {
   const [existingEmail, existingUsername] = await Promise.all([
     userRepository.findByEmail(input.email),
@@ -49,6 +57,10 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
   return { user: toMeUser(user), ...tokens };
 }
 
+/**
+ * @throws {UnauthenticatedError} if the email is unknown or the password does not match. The same
+ * error and message are used for both cases so a caller cannot enumerate registered emails.
+ */
 export async function login(input: LoginInput): Promise<AuthResult> {
   const user = await userRepository.findByEmail(input.email);
   const invalidCredentialsError = new UnauthenticatedError('Invalid email or password');
@@ -61,6 +73,13 @@ export async function login(input: LoginInput): Promise<AuthResult> {
   return { user: toMeUser(user), ...tokens };
 }
 
+/**
+ * Rotates a refresh token: revokes the presented one and issues a fresh pair.
+ * @throws {UnauthenticatedError} if the token is unknown, expired, or already revoked. A revoked
+ * token being presented again means it leaked and was replayed - not an ordinary expiry - so this
+ * also revokes every other active session for the user, forcing both the attacker and the
+ * legitimate user to log in again.
+ */
 export async function refresh(refreshToken: string): Promise<RefreshResult> {
   const tokenHash = hashRefreshToken(refreshToken);
   const existing = await refreshTokenRepository.findByTokenHash(tokenHash);
@@ -70,12 +89,6 @@ export async function refresh(refreshToken: string): Promise<RefreshResult> {
     throw invalidTokenError;
   }
 
-  // A revoked token being presented again is not an ordinary error: tokens
-  // are only ever revoked by a prior refresh or a logout, so this token must
-  // have leaked and been replayed. Kill the whole session family so both the
-  // attacker and the legitimate user are forced to log in again. An expired
-  // (but never revoked) token carries no such signal - it is just a stale
-  // token - so it is rejected the ordinary way.
   if (existing.revokedAt) {
     await refreshTokenRepository.revokeAllActiveForUser(existing.userId);
     logger.warn({ userId: existing.userId }, 'refresh token reuse detected; revoked all active sessions');
@@ -92,12 +105,14 @@ export async function refresh(refreshToken: string): Promise<RefreshResult> {
   });
 }
 
+/**
+ * Idempotent and does not reveal whether the token exists: a missing token, a token belonging to
+ * another user, or an already-revoked token are all silent no-ops.
+ */
 export async function logout(userId: string, refreshToken: string): Promise<void> {
   const tokenHash = hashRefreshToken(refreshToken);
   const existing = await refreshTokenRepository.findByTokenHash(tokenHash);
 
-  // Idempotent and does not reveal whether the token exists: a missing
-  // token, a foreign token, or an already-revoked token are all no-ops.
   if (!existing || existing.userId !== userId || existing.revokedAt) return;
 
   await refreshTokenRepository.revoke(existing.id);

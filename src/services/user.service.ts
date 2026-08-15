@@ -28,7 +28,7 @@ export interface PublicProfile extends PublicUser {
   isFollowing?: boolean;
 }
 
-/// Never expose passwordHash. Only the account owner sees their own email.
+/** Never expose passwordHash. Only the account owner sees their own email. */
 export function toMeUser(user: User): MeUser {
   return {
     id: user.id,
@@ -48,6 +48,7 @@ export function toPublicUser(user: userRepository.PublicUserRow): PublicUser {
   };
 }
 
+/** @throws {NotFoundError} if the user does not exist. */
 export async function getMe(userId: string): Promise<MeUser> {
   const user = await userRepository.findById(userId);
   if (!user) throw new NotFoundError('User not found');
@@ -56,17 +57,25 @@ export async function getMe(userId: string): Promise<MeUser> {
 
 const LEGACY_PROFILE_IMAGE_URL_PATTERN = /^https?:\/\//i;
 
-/// Rejects a storage key that does not belong to the caller's own avatar
-/// upload prefix, so a user cannot point their avatar at another user's
-/// uploaded object. Mirrors validateImageKeyOwnership in post.service.ts.
-/// TRANSITIONAL: a plain http(s) URL skips this check entirely (see
-/// updateMe below) - delete this comment once that form is removed.
+/**
+ * Rejects a storage key that does not belong to the caller's own avatar upload prefix, so a
+ * user cannot point their avatar at another user's uploaded object. Mirrors
+ * validateImageKeyOwnership in post.service.ts.
+ * TRANSITIONAL: a plain http(s) URL skips this check entirely (see updateMe below) - delete this
+ * comment once that form is removed.
+ * @throws {BadRequestError} if the key falls outside `avatars/<ownerId>/`.
+ */
 function validateAvatarKeyOwnership(storageKey: string, ownerId: string): void {
   if (!storageKey.startsWith(`avatars/${ownerId}/`)) {
     throw new BadRequestError('Avatar image key must belong to the caller');
   }
 }
 
+/**
+ * @throws {ConflictError} if the new username is already taken by another user.
+ * @throws {BadRequestError} if a non-legacy-URL profileImage fails ownership validation (see
+ * {@link validateAvatarKeyOwnership}) or storage verification (`verifyUploadedImage`).
+ */
 export async function updateMe(userId: string, input: UpdateMeInput): Promise<MeUser> {
   if (input.username) {
     const existing = await userRepository.findByUsername(input.username);
@@ -95,6 +104,10 @@ export async function updateMe(userId: string, input: UpdateMeInput): Promise<Me
   return toMeUser(updated);
 }
 
+/**
+ * @param viewerId When present and different from `userId`, includes `isFollowing`.
+ * @throws {NotFoundError} if the user does not exist.
+ */
 export async function getPublicProfile(userId: string, viewerId?: string): Promise<PublicProfile> {
   const profile = await userRepository.findPublicProfileCounts(userId);
   if (!profile) throw new NotFoundError('User not found');

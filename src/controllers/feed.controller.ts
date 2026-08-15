@@ -3,6 +3,7 @@ import * as feedService from '../services/feed.service';
 import type { PostResponse } from '../services/post.service';
 import type { AuthorizedRequest, TypedResponse } from '../types/http';
 
+/** Lists posts from users the caller follows. */
 export async function getFeed(
   req: AuthorizedRequest<void, CursorPagination>,
   res: TypedResponse<Page<PostResponse>>,

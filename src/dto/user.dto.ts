@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { cursorPaginationSchema } from '../lib/pagination';
 
+/** Any subset of the caller's own profile fields; omitted fields are left unchanged. */
 export const updateMeSchema = z.object({
   username: z.string().trim().min(3).max(30).optional(),
   // Accepts either a storage key (new uploads, see
@@ -14,6 +15,7 @@ export const updateMeSchema = z.object({
 });
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;
 
+/** Requests a presigned URL to upload a new avatar; `contentLength` is the exact byte size of the upload. */
 export const avatarUploadUrlSchema = z.object({
   contentType: z.string().trim().min(1),
   contentLength: z.coerce.number().int().positive(),
@@ -25,6 +27,7 @@ export const userIdParamsSchema = z.object({
 });
 export type UserIdParams = z.infer<typeof userIdParamsSchema>;
 
+/** `search`, when omitted, lists all users; when present, filters by it. */
 export const searchUsersQuerySchema = cursorPaginationSchema.extend({
   search: z.string().trim().min(1).max(100).optional(),
 });

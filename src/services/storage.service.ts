@@ -4,8 +4,10 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../config/env';
 import { BadRequestError } from '../lib/errors';
 
-/// Only these types can be uploaded as post images; anything else is rejected
-/// before we ever hand out a presigned URL.
+/**
+ * Only these types can be uploaded as post images; anything else is rejected before we ever
+ * hand out a presigned URL.
+ */
 const ALLOWED_CONTENT_TYPES: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -15,10 +17,11 @@ const ALLOWED_CONTENT_TYPES: Record<string, string> = {
 const MAX_CONTENT_LENGTH_BYTES = 10 * 1024 * 1024;
 const UPLOAD_URL_TTL_SECONDS = 300;
 
-/// Magic-number check for each allowed content type. WebP needs two
-/// disjoint byte ranges (the RIFF container header, then the "WEBP" tag
-/// after the 4-byte chunk size), so each entry is a list of
-/// (offset, expected bytes) pairs rather than a single prefix.
+/**
+ * Magic-number check for each allowed content type. WebP needs two disjoint byte ranges (the
+ * RIFF container header, then the "WEBP" tag after the 4-byte chunk size), so each entry is a
+ * list of (offset, expected bytes) pairs rather than a single prefix.
+ */
 const MAGIC_NUMBER_RANGES: Record<string, Array<{ offset: number; bytes: number[] }>> = {
   'image/jpeg': [{ offset: 0, bytes: [0xff, 0xd8, 0xff] }],
   'image/png': [{ offset: 0, bytes: [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] }],
@@ -42,10 +45,11 @@ function matchesDeclaredType(contentType: string, bytes: Uint8Array): boolean {
 const s3Client = new S3Client({
   region: env.S3_REGION,
   endpoint: env.S3_ENDPOINT,
-  // A custom endpoint means a self-hosted, S3-compatible store such as MinIO.
-  // Those serve buckets as a path segment, whereas the SDK defaults to the
-  // virtual-hosted form (bucket.host), which does not resolve there.
-  // Real AWS S3 keeps the default.
+  /**
+   * A custom endpoint means a self-hosted, S3-compatible store such as MinIO. Those serve
+   * buckets as a path segment, whereas the SDK defaults to the virtual-hosted form
+   * (bucket.host), which does not resolve there. Real AWS S3 keeps the default.
+   */
   forcePathStyle: Boolean(env.S3_ENDPOINT),
   credentials: {
     accessKeyId: env.S3_ACCESS_KEY_ID,
@@ -57,9 +61,11 @@ export interface CreateUploadUrlParams {
   userId: string;
   contentType: string;
   contentLength: number;
-  /// Top-level storage folder the key is issued under, e.g. `posts` or
-  /// `recipes`. Callers validate ownership later by checking the resulting
-  /// key starts with `<folder>/<userId>/`, so this must match that check.
+  /**
+   * Top-level storage folder the key is issued under, e.g. `posts` or `recipes`. Callers
+   * validate ownership later by checking the resulting key starts with `<folder>/<userId>/`, so
+   * this must match that check.
+   */
   folder: string;
 }
 
@@ -68,8 +74,12 @@ export interface CreateUploadUrlResult {
   storageKey: string;
 }
 
-/// Issues a presigned PUT URL scoped to the caller's own prefix, so ownership
-/// of an uploaded key can later be verified from the key itself.
+/**
+ * Issues a presigned PUT URL scoped to the caller's own prefix, so ownership of an uploaded key
+ * can later be verified from the key itself.
+ * @throws {BadRequestError} if the content type is not one of the allowed image types, or the
+ * declared content length is non-positive or exceeds the 10 MB upload limit.
+ */
 export async function createUploadUrl({
   userId,
   contentType,
@@ -100,20 +110,22 @@ export async function createUploadUrl({
   return { uploadUrl, storageKey };
 }
 
-/// Confirms a client-supplied storage key is a real, plausible image before
-/// it is attached to a post or recipe - the presigned PUT only reserves the
-/// key and asserts what the client *claims* it will upload; nothing forces
-/// the client to actually upload, or to upload what it declared. This is a
-/// write-path check only (called from createPost/createRecipe/updateRecipe),
-/// never from a read path.
-///
-/// Storage being unreachable (network error, timeout, wrong credentials,
-/// bucket misconfigured, ...) is deliberately NOT turned into a 400: only
-/// the S3-modeled `NotFound` exception - which means the bucket positively
-/// answered "no such key" - is treated as the caller's fault. Any other
-/// error (including a plain network failure) is rethrown as-is and falls
-/// through to the app's default error handler, which reports it as a 500,
-/// exactly like any other infrastructure failure.
+/**
+ * Confirms a client-supplied storage key is a real, plausible image before it is attached to a
+ * post or recipe - the presigned PUT only reserves the key and asserts what the client *claims*
+ * it will upload; nothing forces the client to actually upload, or to upload what it declared.
+ * This is a write-path check only (called from createPost/createRecipe/updateRecipe), never from
+ * a read path.
+ *
+ * Storage being unreachable (network error, timeout, wrong credentials, bucket misconfigured,
+ * ...) is deliberately NOT turned into a 400: only the S3-modeled `NotFound` exception - which
+ * means the bucket positively answered "no such key" - is treated as the caller's fault. Any
+ * other error (including a plain network failure) is rethrown as-is and falls through to the
+ * app's default error handler, which reports it as a 500, exactly like any other infrastructure
+ * failure.
+ * @throws {BadRequestError} if the key was never uploaded (S3 NotFound), or the uploaded object
+ * has an invalid size, unsupported content type, or bytes that don't match the declared type.
+ */
 export async function verifyUploadedImage(storageKey: string): Promise<void> {
   let head;
   try {
@@ -154,8 +166,10 @@ export async function verifyUploadedImage(storageKey: string): Promise<void> {
   }
 }
 
-/// The database stores only the object key; this resolves it to a fetchable
-/// URL at read time, so switching storage/CDN providers is a config change.
+/**
+ * The database stores only the object key; this resolves it to a fetchable URL at read time, so
+ * switching storage/CDN providers is a config change.
+ */
 export function publicUrlFor(storageKey: string): string {
   if (env.S3_PUBLIC_BASE_URL) {
     return `${env.S3_PUBLIC_BASE_URL.replace(/\/+$/, '')}/${storageKey}`;

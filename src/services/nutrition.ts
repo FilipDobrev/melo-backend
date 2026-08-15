@@ -1,7 +1,7 @@
 import { Unit } from '@prisma/client';
 import { BadRequestError } from '../lib/errors';
 
-/// Volume units expressed in millilitres. US customary measures.
+/** Volume units expressed in millilitres. US customary measures. */
 const MILLILITRES_PER_UNIT: Partial<Record<Unit, number>> = {
   [Unit.MILLILITRE]: 1,
   [Unit.LITRE]: 1000,
@@ -32,9 +32,13 @@ export interface IngredientAmount {
   product: NutritionPer100g & { name: string };
 }
 
-/// Converts an ingredient amount to grams. Volume conversion assumes the
-/// density of water when the product does not define one, which is accurate
-/// for liquids and a documented approximation elsewhere.
+/**
+ * Converts an ingredient amount to grams. Volume conversion assumes the density of water when
+ * the product does not define one, which is accurate for liquids and a documented approximation
+ * elsewhere.
+ * @throws {BadRequestError} if quantity is negative or non-finite, if the unit is PIECE but the
+ * product has no gramsPerPiece, or if the unit is otherwise unrecognized.
+ */
 export function toGrams(quantity: number, unit: Unit, product: NutritionPer100g & { name: string }): number {
   if (!Number.isFinite(quantity) || quantity < 0) {
     throw new BadRequestError(`Invalid quantity for product "${product.name}"`);
@@ -58,6 +62,7 @@ export function toGrams(quantity: number, unit: Unit, product: NutritionPer100g 
   return quantity * millilitres * density;
 }
 
+/** @throws {BadRequestError} see {@link toGrams}. */
 export function ingredientNutrition(ingredient: IngredientAmount): Nutrition {
   const grams = toGrams(ingredient.quantity, ingredient.unit, ingredient.product);
   const factor = grams / 100;
@@ -70,6 +75,11 @@ export function ingredientNutrition(ingredient: IngredientAmount): Nutrition {
   };
 }
 
+/**
+ * Sums nutrition across every ingredient, rounding once at the end rather than per-ingredient
+ * so intermediate rounding error cannot accumulate.
+ * @throws {BadRequestError} see {@link toGrams}.
+ */
 export function recipeNutrition(ingredients: IngredientAmount[]): Nutrition {
   const total = ingredients.reduce<Nutrition>(
     (acc, ingredient) => {

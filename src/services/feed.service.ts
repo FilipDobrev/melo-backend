@@ -3,6 +3,7 @@ import { toPage } from '../lib/pagination';
 import * as feedRepository from '../repositories/feed.repository';
 import { attachReactions, type PostResponse } from './post.service';
 
+/** Posts from the accounts the user follows, newest first. */
 export async function getFeed(userId: string, pagination: CursorPagination): Promise<Page<PostResponse>> {
   const rows = await feedRepository.listFeed({
     followerId: userId,

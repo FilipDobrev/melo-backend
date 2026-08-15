@@ -8,6 +8,12 @@ function toUserSummary(user: UserSummary): UserSummary {
   return { ...user, profileImage: resolveProfileImage(user.profileImage) };
 }
 
+/**
+ * @throws {BadRequestError} if the caller targets themselves.
+ * @throws {NotFoundError} if the target user does not exist.
+ * @throws A duplicate follow is rejected by the DB's unique constraint (Prisma P2002 -> 409),
+ * avoiding a read-then-write race.
+ */
 export async function followUser(currentUserId: string, targetUserId: string): Promise<void> {
   if (currentUserId === targetUserId) {
     throw new BadRequestError('You cannot follow yourself');
@@ -16,13 +22,11 @@ export async function followUser(currentUserId: string, targetUserId: string): P
   if (!targetExists) {
     throw new NotFoundError('User not found');
   }
-  // Duplicate follows are rejected by the DB unique constraint (P2002 -> 409),
-  // avoiding a read-then-write race.
   await followRepository.createFollow(currentUserId, targetUserId);
 }
 
+/** @throws A missing follow row raises Prisma P2025, mapped to 404 by the error middleware. */
 export async function unfollowUser(currentUserId: string, targetUserId: string): Promise<void> {
-  // A missing row raises P2025 -> 404, handled by the error middleware.
   await followRepository.deleteFollow(currentUserId, targetUserId);
 }
 

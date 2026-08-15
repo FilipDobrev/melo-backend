@@ -1,16 +1,20 @@
 import {prisma, type Db} from '../lib/prisma';
 
+/** Minimal identity fields for rendering a recipe's owner. */
 export interface UserSummary {
   id: string;
   username: string;
   profileImage: string | null;
 }
 
+/** Minimal identity fields for rendering a recipe's assigned category. */
 export interface CategorySummary {
   slug: string;
   name: string;
 }
 
+/** Row shape for a recipe as it appears in cookbook/collection listings.
+ * Shared with collection.repository.ts's listRecipes. */
 export interface SavedRecipeSummary {
   id: string;
   title: string;
@@ -21,6 +25,7 @@ export interface SavedRecipeSummary {
   categories: CategorySummary[];
 }
 
+/** Select shape backing SavedRecipeSummary; kept next to the type so the two stay in sync. */
 const savedRecipeSelect = {
   id: true,
   title: true,
@@ -36,9 +41,13 @@ export async function recipeExists(recipeId: string, db: Db = prisma): Promise<b
   return recipe !== null;
 }
 
-/// Bulk membership check used to attach `isSaved` to post payloads without
-/// a per-post query. Anonymous viewers (userId null on optional-auth paths)
-/// never have saves, so we skip the database entirely for them.
+/**
+ * Bulk membership check used to attach `isSaved` to post payloads without
+ * a per-post query. Anonymous viewers (userId null on optional-auth paths)
+ * never have saves, so we skip the database entirely for them.
+ *
+ * @returns A Set for O(1) membership lookups when stamping `isSaved` onto each row.
+ */
 export async function findSavedRecipeIds(
   userId: string | null,
   recipeIds: string[],
@@ -53,15 +62,19 @@ export async function findSavedRecipeIds(
   return new Set(rows.map((row) => row.recipeId));
 }
 
-/// Relies on `@@unique([userId, recipeId])`; a duplicate save raises P2002,
-/// which the error middleware maps to 409. Only references the recipe, it
-/// never copies its data or changes ownership.
+/**
+ * Relies on `@@unique([userId, recipeId])`; a duplicate save raises P2002,
+ * which the error middleware maps to 409. Only references the recipe, it
+ * never copies its data or changes ownership.
+ */
 export async function createSave(userId: string, recipeId: string, db: Db = prisma): Promise<void> {
   await db.cookbookSave.create({data: {userId, recipeId}});
 }
 
-/// Idempotent variant used when a save is a side effect rather than the
-/// request itself, e.g. adding a recipe to a collection.
+/**
+ * Idempotent variant used when a save is a side effect rather than the
+ * request itself, e.g. adding a recipe to a collection.
+ */
 export async function ensureSave(userId: string, recipeId: string, db: Db = prisma): Promise<void> {
   await db.cookbookSave.upsert({
     where: {userId_recipeId: {userId, recipeId}},
@@ -70,14 +83,18 @@ export async function ensureSave(userId: string, recipeId: string, db: Db = pris
   });
 }
 
-/// Deletes via the compound unique key; a missing row raises P2025, which
-/// the error middleware maps to 404.
+/**
+ * Deletes via the compound unique key; a missing row raises P2025, which
+ * the error middleware maps to 404.
+ */
 export async function deleteSave(userId: string, recipeId: string, db: Db = prisma): Promise<void> {
   await db.cookbookSave.delete({where: {userId_recipeId: {userId, recipeId}}});
 }
 
-/// recipeId is unique within this filtered set (per the compound unique
-/// constraint), so it doubles as the page cursor.
+/**
+ * recipeId is unique within this filtered set (per the compound unique
+ * constraint), so it doubles as the page cursor.
+ */
 export async function listSavedRecipes(
   userId: string,
   cursor: string | undefined,

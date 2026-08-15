@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma, type Db } from '../lib/prisma';
 import { DEFAULT_PAGE_SIZE } from '../lib/pagination';
 
+/** Shared select shape for anywhere a comment is rendered (create response, list). */
 const COMMENT_SELECT = {
   id: true,
   postId: true,
@@ -28,8 +29,10 @@ export interface ListCommentsParams {
   limit?: number;
 }
 
-/// Fetches limit + 1 rows so the caller can derive the next cursor without
-/// an extra count query. See src/lib/pagination.ts.
+/**
+ * Fetches limit + 1 rows so the caller can derive the next cursor without
+ * an extra count query. See src/lib/pagination.ts.
+ */
 export function list(
   { postId, cursor, limit = DEFAULT_PAGE_SIZE }: ListCommentsParams,
   db: Db = prisma,
@@ -43,6 +46,8 @@ export function list(
   });
 }
 
+/** Lean row used only to authorize edit/delete: caller checks `authorId`
+ * against the requester before mutating. */
 export interface CommentOwnershipRow {
   id: string;
   postId: string;
@@ -56,6 +61,7 @@ export function findById(commentId: string, db: Db = prisma): Promise<CommentOwn
   });
 }
 
+/** A missing comment raises P2025, which the error middleware maps to 404. */
 export function remove(commentId: string, db: Db = prisma): Promise<{ id: string }> {
   return db.comment.delete({ where: { id: commentId }, select: { id: true } });
 }

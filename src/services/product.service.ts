@@ -13,12 +13,14 @@ export async function listProducts(query: ListProductsQuery): Promise<Page<Produ
   return toPage(rows, query.limit);
 }
 
+/** @throws {NotFoundError} if the product does not exist. */
 export async function getProductById(productId: string): Promise<Product> {
   const product = await productRepository.findProductById(productId);
   if (!product) throw new NotFoundError('Product not found');
   return product;
 }
 
+/** @throws {ConflictError} if a product with this name already exists. */
 export async function createProduct(input: CreateProductInput): Promise<Product> {
   const existing = await productRepository.findProductByName(input.name);
   if (existing) throw new ConflictError(`Product "${input.name}" already exists`);

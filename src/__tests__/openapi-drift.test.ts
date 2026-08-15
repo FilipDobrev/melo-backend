@@ -5,19 +5,21 @@ import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Express } from 'express';
 
-/// Guards against the OpenAPI description (openapi/) silently drifting from
-/// the Express routes it claims to document. Runs in the fast unit suite
-/// (`npm test`): it needs no database and no HTTP server, just the route
-/// table Express builds when the app module is constructed, and the
-/// bundled OpenAPI document. See openapi/CONVENTIONS.md for the authoring
-/// rules this test enforces indirectly.
+/** Guards against the OpenAPI description (openapi/) silently drifting from
+ * the Express routes it claims to document. Runs in the fast unit suite
+ * (`npm test`): it needs no database and no HTTP server, just the route
+ * table Express builds when the app module is constructed, and the
+ * bundled OpenAPI document. See openapi/CONVENTIONS.md for the authoring
+ * rules this test enforces indirectly.
+ */
 
 const HTTP_METHODS = new Set(['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']);
 
-/// The subset of Express's undocumented internal `Layer`/`Route` shape this
-/// file relies on to walk the router stack. Not exported by @types/express,
-/// so this is a hand-written model of what Express 4 actually builds -
-/// verified against the installed express version, not guessed.
+/** The subset of Express's undocumented internal `Layer`/`Route` shape this
+ * file relies on to walk the router stack. Not exported by @types/express,
+ * so this is a hand-written model of what Express 4 actually builds -
+ * verified against the installed express version, not guessed.
+ */
 interface ExpressRouteLayer {
   name: string;
   regexp: RegExp;
@@ -35,18 +37,19 @@ interface RouteEntry {
   path: string;
 }
 
-/// Express never stores a mounted sub-router's literal prefix as a string;
-/// only the compiled matcher regexp survives on the layer. Every
-/// `router.use(prefix, subRouter)` in this codebase (src/routes/index.ts,
-/// user.routes.ts, recipe.routes.ts) mounts at a static, param-free prefix,
-/// or with no prefix at all (`router.use(subRouter)`, used by user.routes.ts
-/// to compose the follow/cookbook/collection/post/recipe sub-routers at the
-/// same level as their parent). path-to-regexp 0.1.x (Express 4's bundled
-/// version) compiles a static prefix to exactly
-/// `^\/<literal>\/?(?=\/|$)`, and a no-prefix/root mount to `^\/?(?=\/|$)`.
-/// Recovering the literal prefix from that fixed shape is safe here; it
-/// would not be for a mount prefix containing a `:param`, which this
-/// codebase never does.
+/** Express never stores a mounted sub-router's literal prefix as a string;
+ * only the compiled matcher regexp survives on the layer. Every
+ * `router.use(prefix, subRouter)` in this codebase (src/routes/index.ts,
+ * user.routes.ts, recipe.routes.ts) mounts at a static, param-free prefix,
+ * or with no prefix at all (`router.use(subRouter)`, used by user.routes.ts
+ * to compose the follow/cookbook/collection/post/recipe sub-routers at the
+ * same level as their parent). path-to-regexp 0.1.x (Express 4's bundled
+ * version) compiles a static prefix to exactly
+ * `^\/<literal>\/?(?=\/|$)`, and a no-prefix/root mount to `^\/?(?=\/|$)`.
+ * Recovering the literal prefix from that fixed shape is safe here; it
+ * would not be for a mount prefix containing a `:param`, which this
+ * codebase never does.
+ */
 function extractMountPrefix(regexp: RegExp): string {
   if (/^\^\\\/\?\(\?=\\\/\|\$\)$/.test(regexp.source)) return '';
   const match = /^\^\\\/(.+)\\\/\?\(\?=\\\/\|\$\)$/.exec(regexp.source);
@@ -61,10 +64,11 @@ function extractMountPrefix(regexp: RegExp): string {
   return `/${literal.replace(/\\\//g, '/')}`;
 }
 
-/// Recursively walks an Express router's layer stack, following mounted
-/// sub-routers (user.routes.ts alone nests three levels: apiRouter ->
-/// userRouter -> followRouter/collectionRouter/etc.), and collects every
-/// method+path pair actually registered.
+/** Recursively walks an Express router's layer stack, following mounted
+ * sub-routers (user.routes.ts alone nests three levels: apiRouter ->
+ * userRouter -> followRouter/collectionRouter/etc.), and collects every
+ * method+path pair actually registered.
+ */
 function collectExpressRoutes(stack: ExpressRouteLayer[], prefix: string, out: RouteEntry[]): void {
   for (const layer of stack) {
     if (layer.route) {
@@ -91,12 +95,13 @@ interface BundledOpenApi {
   paths: Record<string, Record<string, unknown>>;
 }
 
-/// Bundles openapi/openapi.yaml to a throwaway JSON file via the same
-/// redocly CLI `npm run openapi:bundle` uses, so this test can never pass
-/// against a stale copy of the multi-file description - it always reflects
-/// the files on disk right now. Invoked as `node <redocly's cli.js>` rather
-/// than through the `redocly`/`redocly.cmd` shim so it runs identically on
-/// Windows and POSIX without a shell in between.
+/** Bundles openapi/openapi.yaml to a throwaway JSON file via the same
+ * redocly CLI `npm run openapi:bundle` uses, so this test can never pass
+ * against a stale copy of the multi-file description - it always reflects
+ * the files on disk right now. Invoked as `node <redocly's cli.js>` rather
+ * than through the `redocly`/`redocly.cmd` shim so it runs identically on
+ * Windows and POSIX without a shell in between.
+ */
 function bundleOpenApi(): BundledOpenApi {
   const repoRoot = path.resolve(__dirname, '..', '..');
   const cli = path.join(repoRoot, 'node_modules', '@redocly', 'cli', 'bin', 'cli.js');
@@ -125,14 +130,15 @@ function getOpenApiOperations(bundle: BundledOpenApi): RouteEntry[] {
   return operations;
 }
 
-/// Puts an Express route and an OpenAPI operation into one comparable form:
-/// Express's `:userId` becomes OpenAPI's `{userId}`, a trailing slash is
-/// dropped (Express and OpenAPI both treat `/foo` and `/foo/` as the same
-/// resource here), and the `/api/v1` prefix - present on every mounted
-/// Express route except the two health checks, and absent from every
-/// OpenAPI path key, including the health ones (see
-/// openapi/paths/health/*.yaml's path-level `servers` override) - is
-/// stripped so both sides read the same for those two too.
+/** Puts an Express route and an OpenAPI operation into one comparable form:
+ * Express's `:userId` becomes OpenAPI's `{userId}`, a trailing slash is
+ * dropped (Express and OpenAPI both treat `/foo` and `/foo/` as the same
+ * resource here), and the `/api/v1` prefix - present on every mounted
+ * Express route except the two health checks, and absent from every
+ * OpenAPI path key, including the health ones (see
+ * openapi/paths/health/*.yaml's path-level `servers` override) - is
+ * stripped so both sides read the same for those two too.
+ */
 function normaliseRoute(route: RouteEntry): string {
   let normalisedPath = route.path.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
   normalisedPath = normalisedPath.replace(/^\/api\/v1(?=\/|$)/, '');

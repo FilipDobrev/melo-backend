@@ -4,6 +4,7 @@ import type { Page } from '../lib/pagination';
 import * as productService from '../services/product.service';
 import type { AuthorizedRequest, ProductIdParams, TypedResponse, UnauthorizedRequest } from '../types/http';
 
+/** Lists products, optionally filtered by search. */
 export async function listProducts(
   req: UnauthorizedRequest<void, ListProductsQuery>,
   res: TypedResponse<Page<Product>>,
@@ -12,6 +13,7 @@ export async function listProducts(
   res.json(page);
 }
 
+/** Gets a single product. */
 export async function getProduct(
   req: UnauthorizedRequest<void, unknown, ProductIdParams>,
   res: TypedResponse<Product>,
@@ -20,6 +22,7 @@ export async function getProduct(
   res.json(product);
 }
 
+/** Creates a product. Responds 201. */
 export async function createProduct(
   req: AuthorizedRequest<CreateProductInput>,
   res: TypedResponse<Product>,

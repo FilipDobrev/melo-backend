@@ -7,11 +7,20 @@ interface ErrorBody {
   error: { code: string; message: string; details?: unknown; requestId?: string };
 }
 
+/** Terminal handler mounted after all routes: no route matched, so 404. */
 export function notFoundHandler(_req: Request, res: Response): void {
   const body: ErrorBody = { error: { code: 'NOT_FOUND', message: 'Route not found' } };
   res.status(404).json(body);
 }
 
+/**
+ * Express's global error handler (4-arg signature required by Express to be
+ * recognized as one). Maps a thrown/rejected error to a status and JSON body
+ * via {@link mapError}; 5xx responses get a `requestId` (pino-http's request
+ * id) so a user can hand it to support, and are logged with full error
+ * detail, while every other status is only debug-logged. Internal error
+ * detail is never included in the response body itself.
+ */
 export function errorHandler(
   err: unknown,
   req: Request,
@@ -36,6 +45,15 @@ export function errorHandler(
   res.status(mapped.status).json(body);
 }
 
+/**
+ * Maps an error to a response shape. `AppError` subclasses pass their own
+ * status/code through unchanged. Known Prisma error codes are translated so
+ * a raw database constraint failure reads as an API error instead of a 500:
+ * P2002 (unique constraint) -> 409 CONFLICT, P2025 (record not found) -> 404
+ * NOT_FOUND, P2003 (foreign key constraint) -> 400 BAD_REQUEST. Everything
+ * else - including unmapped Prisma codes - falls through to a generic 500;
+ * the real error is logged by the caller, never returned to the client.
+ */
 function mapError(err: unknown): {
   status: number;
   code: string;

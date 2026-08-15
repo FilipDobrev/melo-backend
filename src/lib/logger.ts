@@ -1,6 +1,7 @@
 import pino from 'pino';
 import { env } from '../config/env';
 
+/** App-wide pino logger. Silent in tests, redacts credentials/tokens in every log line. */
 export const logger = pino({
   // The integration suite boots the real app per test file and exercises it
   // over HTTP, so pino-http would otherwise emit a request/response log line

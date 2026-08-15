@@ -3,14 +3,22 @@ import type { ZodTypeAny } from 'zod';
 import { type z as ZodType, ZodError } from 'zod';
 import { ValidationError } from '../lib/errors';
 
+/** Per-part zod schemas a route wants `validate()` to run. */
 export interface RequestSchemas {
   body?: ZodTypeAny;
   query?: ZodTypeAny;
   params?: ZodTypeAny;
 }
 
-/// Validated values are written back onto the request, so controllers read
-/// parsed and typed data rather than raw strings.
+/**
+ * Parses `req.body`/`query`/`params` against the given schemas and, on
+ * success, writes the parsed values back onto the request in place - so
+ * downstream controllers read parsed and typed data rather than raw strings.
+ * A zod failure is converted to a {@link ValidationError} (422) with the
+ * per-field issues attached.
+ *
+ * @throws {ValidationError} when any provided schema fails to parse.
+ */
 export function validate(schemas: RequestSchemas) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     try {
@@ -35,5 +43,5 @@ function formatZodIssues(error: ZodError): Array<{ path: string; message: string
   }));
 }
 
-/// Helper for controllers that need the parsed type of a schema.
+/** Helper for controllers that need the parsed type of a schema. */
 export type Infer<T extends ZodTypeAny> = ZodType.infer<T>;

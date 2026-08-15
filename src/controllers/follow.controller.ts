@@ -9,6 +9,7 @@ import type {
   UserIdParams,
 } from '../types/http';
 
+/** Follows a user. Responds 204. */
 export async function follow(
   req: AuthorizedRequest<void, unknown, UserIdParams>,
   res: TypedResponse<void>,
@@ -18,6 +19,7 @@ export async function follow(
   res.status(204).send();
 }
 
+/** Unfollows a user. Responds 204. */
 export async function unfollow(
   req: AuthorizedRequest<void, unknown, UserIdParams>,
   res: TypedResponse<void>,
@@ -27,6 +29,7 @@ export async function unfollow(
   res.status(204).send();
 }
 
+/** Lists a user's followers. */
 export async function listFollowers(
   req: UnauthorizedRequest<void, ListFollowQuery, UserIdParams>,
   res: TypedResponse<Page<UserSummary>>,
@@ -37,6 +40,7 @@ export async function listFollowers(
   res.status(200).json(page);
 }
 
+/** Lists who a user follows. */
 export async function listFollowing(
   req: UnauthorizedRequest<void, ListFollowQuery, UserIdParams>,
   res: TypedResponse<Page<UserSummary>>,

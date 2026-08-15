@@ -8,10 +8,14 @@ export interface ListFeedParams {
   limit?: number;
 }
 
-/// Single query: posts authored by anyone the caller follows, plus the
-/// caller's own posts, newest first. The `owner.followers.some` filter is a
-/// semi-join on the Follow table, so this stays one query regardless of page
-/// size - no per-post lookups.
+/**
+ * Single query: posts authored by anyone the caller follows, plus the
+ * caller's own posts, newest first. The `owner.followers.some` filter is a
+ * semi-join on the Follow table, so this stays one query regardless of page
+ * size - no per-post lookups. Fetches limit + 1 rows for cursor derivation
+ * (see src/lib/pagination.ts), and reuses POST_CARD_SELECT so the feed and
+ * single-post queries can't drift apart.
+ */
 export function listFeed(
   { followerId, cursor, limit = DEFAULT_PAGE_SIZE }: ListFeedParams,
   db: Db = prisma,
