@@ -17,9 +17,10 @@ import { uploadUrlRateLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
 import { cookbookSaveRouter } from './cookbook.routes';
 
+/** Recipe routes: CRUD, images, listing. Mounted at /recipes. */
 export const recipeRouter = Router();
 
-/// Cookbook save/unsave lives on the recipe path; owned by the cookbook slice.
+/** Cookbook save/unsave lives on the recipe path; owned by the cookbook slice. */
 recipeRouter.use(cookbookSaveRouter);
 
 recipeRouter.get(
@@ -29,8 +30,8 @@ recipeRouter.get(
   asyncHandler(recipeController.listRecipes),
 );
 
-/// Literal paths must be registered before `/:recipeId`, or express would
-/// swallow them as a recipe id lookup instead.
+// Literal paths must be registered before `/:recipeId`, or express would
+// swallow them as a recipe id lookup instead.
 recipeRouter.post<ParamsDictionary, unknown, CreateRecipeUploadUrlInput>(
   '/images/upload-url',
   uploadUrlRateLimiter,
@@ -68,8 +69,10 @@ recipeRouter.delete(
   ...authed(recipeController.deleteRecipe),
 );
 
-/// Mounts on userRouter as GET /users/:userId/recipes. Not wired here -
-/// the owner of user.routes.ts mounts this router.
+/**
+ * Mounts on userRouter as GET /users/:userId/recipes. Not wired here -
+ * the owner of user.routes.ts mounts this router.
+ */
 export const userRecipeRouter = Router();
 
 userRecipeRouter.get(

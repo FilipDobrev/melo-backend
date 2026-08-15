@@ -16,6 +16,7 @@ import type {
   UserIdParams,
 } from '../types/http';
 
+/** Requests a presigned URL to upload a post image. */
 export async function createUploadUrl(
   req: AuthorizedRequest<CreateUploadUrlInput>,
   res: TypedResponse<CreateUploadUrlResult>,
@@ -29,6 +30,7 @@ export async function createUploadUrl(
   res.status(200).json(result);
 }
 
+/** Creates a post from already-uploaded images. Responds 201. */
 export async function createPost(
   req: AuthorizedRequest<CreatePostInput>,
   res: TypedResponse<PostResponse>,
@@ -42,6 +44,7 @@ export async function createPost(
   res.status(201).json(post);
 }
 
+/** Gets a single post. */
 export async function getPost(
   req: UnauthorizedRequest<void, unknown, PostIdParams>,
   res: TypedResponse<PostResponse>,
@@ -50,6 +53,7 @@ export async function getPost(
   res.status(200).json(post);
 }
 
+/** Updates a post owned by the caller. */
 export async function updatePost(
   req: AuthorizedRequest<UpdatePostInput, unknown, PostIdParams>,
   res: TypedResponse<PostResponse>,
@@ -58,6 +62,7 @@ export async function updatePost(
   res.status(200).json(post);
 }
 
+/** Deletes a post owned by the caller. Responds 204. */
 export async function deletePost(
   req: AuthorizedRequest<void, unknown, PostIdParams>,
   res: TypedResponse<void>,
@@ -66,6 +71,7 @@ export async function deletePost(
   res.status(204).end();
 }
 
+/** Deletes a single image from a post owned by the caller. Responds 204. */
 export async function deletePostImage(
   req: AuthorizedRequest<void, unknown, PostImageParams>,
   res: TypedResponse<void>,
@@ -74,6 +80,7 @@ export async function deletePostImage(
   res.status(204).end();
 }
 
+/** Sets or replaces the caller's reaction on a post. */
 export async function putReaction(
   req: AuthorizedRequest<PutReactionInput, unknown, PostIdParams>,
   res: TypedResponse<ReactionSummary>,
@@ -82,6 +89,7 @@ export async function putReaction(
   res.status(200).json(reactions);
 }
 
+/** Removes the caller's reaction on a post. Responds 204. */
 export async function deleteReaction(
   req: AuthorizedRequest<void, unknown, PostIdParams>,
   res: TypedResponse<void>,
@@ -90,6 +98,7 @@ export async function deleteReaction(
   res.status(204).end();
 }
 
+/** Lists a user's posts. */
 export async function listUserPosts(
   req: UnauthorizedRequest<void, ListPostsQuery, UserIdParams>,
   res: TypedResponse<Page<PostResponse>>,

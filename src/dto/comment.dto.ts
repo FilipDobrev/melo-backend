@@ -6,6 +6,7 @@ export const createCommentSchema = z.object({
 });
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;
 
+/** Identifies a comment scoped to its parent post - a commentId alone is not enough to authorize deletion. */
 export const commentIdParamsSchema = z.object({
   postId: z.string().uuid(),
   commentId: z.string().uuid(),

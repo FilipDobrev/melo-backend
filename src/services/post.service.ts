@@ -20,11 +20,12 @@ export interface AuthorSummary {
 export interface PostImageDto {
   id: string;
   url: string;
-  // The raw storage key, not just the resolved url. A client editing a post
-  // has to re-send the keys of images it wants to keep (PATCH replaces the
-  // image set wholesale), and has no other way to get them. This discloses
-  // nothing new: publicUrlFor builds `url` by prefixing this same key with
-  // the storage base url, so the key is already the tail of `url`.
+  /**
+   * The raw storage key, not just the resolved url. A client editing a post has to re-send the
+   * keys of images it wants to keep (PATCH replaces the image set wholesale), and has no other
+   * way to get them. This discloses nothing new: publicUrlFor builds `url` by prefixing this
+   * same key with the storage base url, so the key is already the tail of `url`.
+   */
   storageKey: string;
 }
 
@@ -46,6 +47,7 @@ export interface PostResponse {
   commentCount: number;
 }
 
+/** Pure mapping from the joined DB row plus pre-fetched reaction/save state to the API response shape. */
 export function toPostResponse(
   row: PostCardRow,
   reactions: ReactionSummary,
@@ -85,8 +87,11 @@ export interface CreatePostInput {
   imageKeys: string[];
 }
 
-/// Rejects any key that is not under the caller's own upload prefix, so a
-/// user cannot attach an image someone else uploaded to their own post.
+/**
+ * Rejects any key that is not under the caller's own upload prefix, so a user cannot attach an
+ * image someone else uploaded to their own post.
+ * @throws {BadRequestError} if any key falls outside `posts/<ownerId>/`.
+ */
 export function validateImageKeyOwnership(imageKeys: string[], ownerId: string): void {
   const invalidKey = imageKeys.find((key) => !key.startsWith(`posts/${ownerId}/`));
   if (invalidKey) {
@@ -94,6 +99,11 @@ export function validateImageKeyOwnership(imageKeys: string[], ownerId: string):
   }
 }
 
+/**
+ * @throws {BadRequestError} see {@link validateImageKeyOwnership}, and via `verifyUploadedImage`
+ * if any image key was never actually uploaded, has an invalid size, or fails the content-type check.
+ * @throws {NotFoundError} if the recipe does not exist.
+ */
 export async function createPost(input: CreatePostInput): Promise<PostResponse> {
   validateImageKeyOwnership(input.imageKeys, input.ownerId);
   // Up to 10 images per post (see createPostSchema), so verify them
@@ -117,6 +127,11 @@ export async function createPost(input: CreatePostInput): Promise<PostResponse> 
   return toPostResponse(row, EMPTY_REACTION_SUMMARY, savedRecipeIds.has(row.recipe.id));
 }
 
+/**
+ * @param viewerId Null for an anonymous request; determines whether `reactions` reflects the
+ * caller's own reaction and whether `recipe.isSaved` reflects the caller's cookbook.
+ * @throws {NotFoundError} if the post does not exist.
+ */
 export async function getPostDetail(postId: string, viewerId: string | null): Promise<PostResponse> {
   const row = await postRepository.findDetailById(postId);
   if (!row) throw new NotFoundError('Post not found');
@@ -138,6 +153,11 @@ export interface UpdatePostInput {
   imageKeys?: string[];
 }
 
+/**
+ * @throws {NotFoundError} if the post, or a replacement recipe, does not exist.
+ * @throws {ForbiddenError} if the caller does not own the post.
+ * @throws {BadRequestError} see {@link validateImageKeyOwnership} and `verifyUploadedImage`.
+ */
 export async function updatePost(postId: string, viewerId: string, input: UpdatePostInput): Promise<PostResponse> {
   const existing = await postRepository.findOwnerId(postId);
   if (!existing) throw new NotFoundError('Post not found');
@@ -178,6 +198,10 @@ export async function updatePost(postId: string, viewerId: string, input: Update
   return getPostDetail(postId, viewerId);
 }
 
+/**
+ * @throws {NotFoundError} if the post does not exist.
+ * @throws {ForbiddenError} if the caller does not own the post.
+ */
 export async function deletePost(postId: string, userId: string): Promise<void> {
   const post = await postRepository.findOwnerId(postId);
   if (!post) throw new NotFoundError('Post not found');
@@ -186,6 +210,11 @@ export async function deletePost(postId: string, userId: string): Promise<void> 
   await postRepository.deletePost(postId);
 }
 
+/**
+ * @throws {NotFoundError} if the image does not exist under this post.
+ * @throws {ForbiddenError} if the caller does not own the post.
+ * @throws {BadRequestError} if it is the post's only remaining image - a post must keep at least one.
+ */
 export async function deletePostImage(postId: string, imageId: string, userId: string): Promise<void> {
   const image = await postRepository.findImageWithPost(imageId);
   if (!image || image.postId !== postId) throw new NotFoundError('Image not found');
@@ -197,8 +226,11 @@ export async function deletePostImage(postId: string, imageId: string, userId: s
   await postRepository.deleteImage(imageId);
 }
 
-/// Shared by any listing endpoint (user posts, feed) that renders
-/// PostCardRow[] and needs reaction summaries attached in bulk.
+/**
+ * Shared by any listing endpoint (user posts, feed) that renders PostCardRow[] and needs
+ * reaction summaries attached in bulk.
+ * @param viewerId Null for an anonymous request; see {@link getPostDetail}.
+ */
 export async function attachReactions(
   rows: PostCardRow[],
   viewerId: string | null,

@@ -7,6 +7,10 @@ export interface ProductListParams {
   limit: number;
 }
 
+/**
+ * Fetches limit + 1 rows so the caller can derive the next cursor without
+ * an extra count query. See src/lib/pagination.ts.
+ */
 export async function findManyProducts(params: ProductListParams, db: Db = prisma): Promise<Product[]> {
   const where: Prisma.ProductWhereInput = params.search
     ? { name: { contains: params.search, mode: 'insensitive' } }
@@ -24,12 +28,16 @@ export async function findProductById(id: string, db: Db = prisma): Promise<Prod
   return db.product.findUnique({ where: { id } });
 }
 
-/// Name is not unique: imported datasets contain colliding descriptions.
-/// Used only to warn about duplicates when a user creates a product manually.
+/**
+ * Name is not unique: imported datasets contain colliding descriptions.
+ * Used only to warn about duplicates when a user creates a product manually.
+ */
 export async function findProductByName(name: string, db: Db = prisma): Promise<Product | null> {
   return db.product.findFirst({ where: { name: { equals: name, mode: 'insensitive' } } });
 }
 
+/** Empty `ids` short-circuits to `[]` rather than issuing an `IN ()` query
+ * that would otherwise just return nothing. */
 export async function findProductsByIds(ids: string[], db: Db = prisma): Promise<Product[]> {
   if (ids.length === 0) return [];
   return db.product.findMany({ where: { id: { in: ids } } });

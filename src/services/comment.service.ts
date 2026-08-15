@@ -25,6 +25,7 @@ function toCommentResponse(row: CommentRow): CommentResponse {
   };
 }
 
+/** @throws {NotFoundError} if the post does not exist. */
 export async function createComment(
   postId: string,
   authorId: string,
@@ -37,6 +38,7 @@ export async function createComment(
   return toCommentResponse(row);
 }
 
+/** @throws {NotFoundError} if the post does not exist. */
 export async function listComments(
   postId: string,
   pagination: CursorPagination,
@@ -53,8 +55,11 @@ export async function listComments(
   return { items: page.items.map(toCommentResponse), nextCursor: page.nextCursor };
 }
 
-/// A comment may be deleted by whoever wrote it, or by the post owner
-/// moderating their own post.
+/**
+ * A comment may be deleted by whoever wrote it, or by the post owner moderating their own post.
+ * @throws {NotFoundError} if the comment does not exist under this post.
+ * @throws {ForbiddenError} if the caller is neither the comment's author nor the post's owner.
+ */
 export async function deleteComment(postId: string, commentId: string, userId: string): Promise<void> {
   const comment = await commentRepository.findById(commentId);
   if (!comment || comment.postId !== postId) throw new NotFoundError('Comment not found');

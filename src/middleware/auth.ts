@@ -9,8 +9,14 @@ function readBearerToken(req: Request): string | null {
   return token.length > 0 ? token : null;
 }
 
-/// Middleware runs before validate(), so body and query are still raw here.
-/// It deals in plain Express requests and only writes `userId`.
+/**
+ * Rejects the request unless it carries a valid Bearer access token; sets
+ * `req.userId` when it does. Runs before `validate()`, so body and query are
+ * still raw here - it deals in plain Express requests and only writes
+ * `userId`. Use via {@link authed} rather than mounting directly.
+ *
+ * @throws {UnauthenticatedError} when the token is missing, malformed, or invalid/expired.
+ */
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   const token = readBearerToken(req);
   if (!token) {
@@ -25,8 +31,10 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction): v
   }
 }
 
-/// Attaches the user when a valid token is present, but never rejects.
-/// Used by public reads that personalise output, e.g. viewer reactions.
+/**
+ * Attaches `req.userId` when a valid token is present, but never rejects.
+ * Used by public reads that personalise output, e.g. viewer reactions.
+ */
 export function optionalAuth(req: Request, _res: Response, next: NextFunction): void {
   const token = readBearerToken(req);
   if (!token) {

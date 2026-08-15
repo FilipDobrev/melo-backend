@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from './middleware/error';
 import { generalApiLimiter } from './middleware/rateLimit';
 import { apiRouter } from './routes';
 
+/** Builds the Express app: middleware, health checks, static assets and API routes. */
 export function createApp(): express.Express {
   const app = express();
 

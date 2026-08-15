@@ -6,6 +6,7 @@ export const createCollectionSchema = z.object({
 });
 export type CreateCollectionInput = z.infer<typeof createCollectionSchema>;
 
+/** `name` is always required here - unlike updatePostSchema there is no partial-update case. */
 export const updateCollectionSchema = z.object({
   name: z.string().trim().min(1).max(60),
 });
@@ -27,5 +28,6 @@ export const addCollectionRecipeSchema = z.object({
 });
 export type AddCollectionRecipeInput = z.infer<typeof addCollectionRecipeSchema>;
 
+/** Paginated listing of the recipes saved in a single collection. */
 export const listCollectionRecipesQuerySchema = cursorPaginationSchema;
 export type ListCollectionRecipesQuery = z.infer<typeof listCollectionRecipesQuerySchema>;

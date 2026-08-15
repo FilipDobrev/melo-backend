@@ -12,6 +12,7 @@ import type {
   UserIdParams,
 } from '../types/http';
 
+/** Lists recipes, optionally filtered/sorted per query. */
 export async function listRecipes(
   req: UnauthorizedRequest<void, ListRecipesQuery>,
   res: TypedResponse<Page<RecipeSummary>>,
@@ -20,6 +21,7 @@ export async function listRecipes(
   res.json(page);
 }
 
+/** Gets a single recipe. */
 export async function getRecipe(
   req: UnauthorizedRequest<void, unknown, RecipeIdParams>,
   res: TypedResponse<RecipeDetail>,
@@ -28,6 +30,7 @@ export async function getRecipe(
   res.json(recipe);
 }
 
+/** Creates a recipe owned by the caller. Responds 201. */
 export async function createRecipe(
   req: AuthorizedRequest<CreateRecipeInput>,
   res: TypedResponse<RecipeDetail>,
@@ -36,6 +39,7 @@ export async function createRecipe(
   res.status(201).json(recipe);
 }
 
+/** Updates a recipe owned by the caller. */
 export async function updateRecipe(
   req: AuthorizedRequest<UpdateRecipeInput, unknown, RecipeIdParams>,
   res: TypedResponse<RecipeDetail>,
@@ -44,6 +48,7 @@ export async function updateRecipe(
   res.json(recipe);
 }
 
+/** Deletes a recipe owned by the caller. Responds 204. */
 export async function deleteRecipe(
   req: AuthorizedRequest<void, unknown, RecipeIdParams>,
   res: TypedResponse<void>,
@@ -52,6 +57,7 @@ export async function deleteRecipe(
   res.status(204).send();
 }
 
+/** Requests a presigned URL to upload a recipe image. */
 export async function createUploadUrl(
   req: AuthorizedRequest<CreateRecipeUploadUrlInput>,
   res: TypedResponse<CreateUploadUrlResult>,
@@ -64,6 +70,7 @@ export async function createUploadUrl(
   res.status(200).json(result);
 }
 
+/** Lists the built-in recipe image presets. */
 export async function listImagePresets(
   _req: UnauthorizedRequest,
   res: TypedResponse<RecipeImagePresetDto[]>,
@@ -71,6 +78,7 @@ export async function listImagePresets(
   res.status(200).json(listRecipeImagePresets());
 }
 
+/** Lists a user's recipes. */
 export async function listRecipesByUser(
   req: UnauthorizedRequest<void, CursorPagination, UserIdParams>,
   res: TypedResponse<Page<RecipeSummary>>,

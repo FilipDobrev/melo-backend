@@ -1,17 +1,22 @@
 import { prisma, type Db } from '../lib/prisma';
 
+/** Aggregate reaction counts for a single post, plus the viewer's own reaction (if any). */
 export interface ReactionSummary {
   total: number;
   byEmoji: Record<string, number>;
   mine: string | null;
 }
 
+/** Shared zero-value fallback for posts with no reactions, so callers don't
+ * each construct their own empty shape. */
 export const EMPTY_REACTION_SUMMARY: ReactionSummary = { total: 0, byEmoji: {}, mine: null };
 
-/// Builds a reaction summary for every post in `postIds` with exactly two
-/// queries total (a groupBy and, when authenticated, a viewer lookup) no
-/// matter how many posts are being rendered - avoids per-post follow-up
-/// queries on the feed and post-list endpoints.
+/**
+ * Builds a reaction summary for every post in `postIds` with exactly two
+ * queries total (a groupBy and, when authenticated, a viewer lookup) no
+ * matter how many posts are being rendered - avoids per-post follow-up
+ * queries on the feed and post-list endpoints.
+ */
 export async function summariesForPosts(
   postIds: string[],
   viewerId: string | null,
@@ -53,6 +58,8 @@ export async function summariesForPosts(
   return summaries;
 }
 
+/** Sets (or replaces) the caller's reaction on a post. Upsert rather than
+ * create+update because a user can only have one reaction per post at a time. */
 export function upsert(
   postId: string,
   userId: string,
@@ -67,8 +74,10 @@ export function upsert(
   });
 }
 
-/// deleteMany rather than delete: removing a reaction that no longer exists
-/// is not an error, it just means there is nothing to do.
+/**
+ * deleteMany rather than delete: removing a reaction that no longer exists
+ * is not an error, it just means there is nothing to do.
+ */
 export async function remove(postId: string, userId: string, db: Db = prisma): Promise<void> {
   await db.reaction.deleteMany({ where: { postId, userId } });
 }

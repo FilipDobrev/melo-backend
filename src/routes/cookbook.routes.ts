@@ -4,7 +4,7 @@ import { validate } from '../middleware/validate';
 import * as cookbookController from '../controllers/cookbook.controller';
 import { recipeIdParamsSchema, listCookbookQuerySchema } from '../dto/cookbook.dto';
 
-/// Mounted on recipeRouter -> /recipes/:recipeId/save
+/** Mounted on recipeRouter -> /recipes/:recipeId/save */
 export const cookbookSaveRouter = Router({ mergeParams: true });
 
 cookbookSaveRouter.post(
@@ -19,7 +19,7 @@ cookbookSaveRouter.delete(
   ...authed(cookbookController.remove),
 );
 
-/// Mounted on userRouter -> /users/me/cookbook
+/** Mounted on userRouter -> /users/me/cookbook */
 export const cookbookListRouter = Router();
 
 cookbookListRouter.get(

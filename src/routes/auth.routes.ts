@@ -5,6 +5,7 @@ import { validate } from '../middleware/validate';
 import * as authController from '../controllers/auth.controller';
 import { loginSchema, logoutSchema, refreshSchema, registerSchema } from '../dto/auth.dto';
 
+/** Auth routes: register, login, refresh, logout. Mounted at /auth. */
 export const authRouter = Router();
 
 authRouter.post(

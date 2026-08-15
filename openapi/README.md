@@ -68,3 +68,8 @@ openapi/
 `openapi.yaml`'s `paths:` map is the index: every documented path is exactly
 one `$ref` line there, grouped by tag in the same order as the tags list and
 API.md's section order.
+
+
+At IGF I had
+npx @redocly/cli bundle ./docs/openapi.yaml -o bundled.yaml
+npx @redocly/cli build-docs bundled.yaml

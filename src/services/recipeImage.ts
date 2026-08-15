@@ -2,18 +2,18 @@ import { env } from '../config/env';
 import { BadRequestError } from '../lib/errors';
 import { publicUrlFor } from './storage.service';
 
-/// A recipe's `imageKey` column holds one of exactly two forms:
-///
-///   - `preset:<slug>`  - one of the built-in images below. Resolved to a
-///     URL under this API's own `/static/recipe-presets` route (see
-///     app.ts), because presets are app assets, not user content in S3.
-///   - a raw storage key for a user-uploaded image, always under
-///     `recipes/<ownerId>/` (mirrors posts/<ownerId>/ in storage.service.ts).
-///     Resolved via `publicUrlFor`, same as post images.
-///
-/// `null` means "no image chosen" and resolves to the default preset.
-/// This is the only place that convention is encoded.
-
+/**
+ * A recipe's `imageKey` column holds one of exactly two forms:
+ *
+ *   - `preset:<slug>`  - one of the built-in images below. Resolved to a URL under this API's
+ *     own `/static/recipe-presets` route (see app.ts), because presets are app assets, not user
+ *     content in S3.
+ *   - a raw storage key for a user-uploaded image, always under `recipes/<ownerId>/` (mirrors
+ *     posts/<ownerId>/ in storage.service.ts). Resolved via `publicUrlFor`, same as post images.
+ *
+ * `null` means "no image chosen" and resolves to the default preset. This is the only place
+ * that convention is encoded.
+ */
 export interface RecipeImagePreset {
   slug: string;
   label: string;
@@ -22,8 +22,10 @@ export interface RecipeImagePreset {
 
 const DEFAULT_PRESET: RecipeImagePreset = { slug: 'default', label: 'Default', filename: 'default.svg' };
 
-/// Filenames are explicit per preset (not derived from the slug) so the
-/// placeholder SVGs can be swapped for real JPEGs later by editing one field.
+/**
+ * Filenames are explicit per preset (not derived from the slug) so the placeholder SVGs can be
+ * swapped for real JPEGs later by editing one field.
+ */
 export const RECIPE_IMAGE_PRESETS: RecipeImagePreset[] = [
   DEFAULT_PRESET,
   { slug: 'breakfast', label: 'Breakfast', filename: 'breakfast.svg' },
@@ -51,13 +53,16 @@ export interface RecipeImagePresetDto {
   url: string;
 }
 
+/** The full catalog of built-in recipe image presets, with resolved URLs. */
 export function listRecipeImagePresets(): RecipeImagePresetDto[] {
   return RECIPE_IMAGE_PRESETS.map((preset) => ({ slug: preset.slug, label: preset.label, url: presetUrl(preset) }));
 }
 
-/// Maps a stored `imageKey` to a fetchable URL. Null (never chosen) and any
-/// unrecognized preset slug both fall back to the default preset, so a
-/// resolver call can never fail - only validation (below) rejects input.
+/**
+ * Maps a stored `imageKey` to a fetchable URL. Null (never chosen) and any unrecognized preset
+ * slug both fall back to the default preset, so a resolver call can never fail - only validation
+ * (below) rejects input.
+ */
 export function resolveRecipeImageUrl(imageKey: string | null): string {
   if (imageKey === null) {
     return presetUrl(DEFAULT_PRESET);
@@ -70,16 +75,21 @@ export function resolveRecipeImageUrl(imageKey: string | null): string {
   return publicUrlFor(imageKey);
 }
 
-/// True for a built-in preset reference, which is an app asset (not an
-/// uploaded object) and must never be checked against storage.
+/**
+ * True for a built-in preset reference, which is an app asset (not an uploaded object) and must
+ * never be checked against storage.
+ */
 export function isRecipeImagePreset(imageKey: string): boolean {
   return imageKey.startsWith(PRESET_PREFIX);
 }
 
-/// Rejects any caller-supplied imageKey that is not a known preset or a key
-/// under the caller's own recipe upload prefix, so a user can never point
-/// their recipe at another user's uploaded object. Mirrors
-/// validateImageKeyOwnership in post.service.ts.
+/**
+ * Rejects any caller-supplied imageKey that is not a known preset or a key under the caller's
+ * own recipe upload prefix, so a user can never point their recipe at another user's uploaded
+ * object. Mirrors validateImageKeyOwnership in post.service.ts.
+ * @throws {BadRequestError} if the key names an unknown preset slug, or is a storage key outside
+ * `recipes/<ownerId>/`.
+ */
 export function validateRecipeImageKey(imageKey: string, ownerId: string): void {
   if (imageKey.startsWith(PRESET_PREFIX)) {
     const slug = imageKey.slice(PRESET_PREFIX.length);

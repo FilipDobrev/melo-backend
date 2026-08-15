@@ -8,6 +8,7 @@ import { productRouter } from './product.routes';
 import { recipeRouter } from './recipe.routes';
 import { userRouter } from './user.routes';
 
+/** Top-level API router, mounted at /api/v1 by app.ts. Combines every feature router. */
 export const apiRouter = Router();
 
 apiRouter.use('/auth', authRouter);

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { cursorPaginationSchema } from '../lib/pagination';
 
-/// Nutrition values are per 100 g and must be finite, non-negative numbers.
+/** Nutrition values are per 100 g and must be finite, non-negative numbers. */
 const nutritionValueSchema = z.number().finite().min(0);
 
 export const createProductSchema = z.object({
@@ -20,6 +20,7 @@ export const productIdParamsSchema = z.object({
 });
 export type ProductIdParams = z.infer<typeof productIdParamsSchema>;
 
+/** `search`, when omitted, lists all products; when present, filters by it. */
 export const listProductsQuerySchema = cursorPaginationSchema.extend({
   search: z.string().trim().min(1).max(100).optional(),
 });

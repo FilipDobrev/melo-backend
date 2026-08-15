@@ -7,11 +7,13 @@ const ownerSummarySelect = {
   profileImage: true,
 } satisfies Prisma.UserSelect;
 
-/// Full shape used for the single-recipe detail response: owner summary,
-/// ingredients joined with their product, assigned categories, and whether
-/// the given viewer has saved it. `savedBy` is always filtered by a viewer
-/// id (an empty string when the caller is anonymous, which never matches a
-/// real user id) so the query shape - and therefore its type - never varies.
+/**
+ * Full shape used for the single-recipe detail response: owner summary,
+ * ingredients joined with their product, assigned categories, and whether
+ * the given viewer has saved it. `savedBy` is always filtered by a viewer
+ * id (an empty string when the caller is anonymous, which never matches a
+ * real user id) so the query shape - and therefore its type - never varies.
+ */
 export const recipeDetailInclude = {
   owner: { select: ownerSummarySelect },
   ingredients: { include: { product: true } },
@@ -21,8 +23,10 @@ export const recipeDetailInclude = {
 
 export type RecipeDetailRow = Prisma.RecipeGetPayload<{ include: typeof recipeDetailInclude }>;
 
-/// Lean shape used for list views: no ingredients/nutrition, to avoid
-/// pulling product data for every row on a page.
+/**
+ * Lean shape used for list views: no ingredients/nutrition, to avoid
+ * pulling product data for every row on a page.
+ */
 const recipeSummaryInclude = {
   owner: { select: ownerSummarySelect },
   categories: { include: { category: true } },
@@ -41,16 +45,23 @@ export interface RecipeListParams {
   limit: number;
 }
 
-/// `id` is always the last key so the ordering is total, which is what makes
-/// the id cursor a stable page boundary. Popularity is the number of
-/// cookbook saves.
+/**
+ * `id` is always the last key so the ordering is total, which is what makes
+ * the id cursor a stable page boundary. Popularity is the number of
+ * cookbook saves, and still paginates correctly under an aggregate ordering
+ * because the trailing `id` tiebreaker holds even when `savedBy._count` ties.
+ */
 function orderFor(sort: RecipeSort): Prisma.RecipeOrderByWithRelationInput[] {
   if (sort === 'oldest') return [{ createdAt: 'asc' }, { id: 'asc' }];
   if (sort === 'popular') return [{ savedBy: { _count: 'desc' } }, { id: 'desc' }];
   return [{ createdAt: 'desc' }, { id: 'desc' }];
 }
 
-/// Recipes matching ANY of the given categorySlugs are returned (not all).
+/**
+ * Fetches limit + 1 rows so the caller can derive the next cursor without an
+ * extra count query (see src/lib/pagination.ts). Recipes matching ANY of the
+ * given categorySlugs are returned (not all).
+ */
 export async function findManyRecipes(params: RecipeListParams, db: Db = prisma): Promise<RecipeSummaryRow[]> {
   const where: Prisma.RecipeWhereInput = {
     ...(params.ownerId ? { ownerId: params.ownerId } : {}),
@@ -69,6 +80,10 @@ export async function findManyRecipes(params: RecipeListParams, db: Db = prisma)
   });
 }
 
+/** `viewerId` is always passed (empty string for anonymous callers) so the
+ * `savedBy` filter - and the resulting query shape - never varies. Include
+ * shape here mirrors recipeDetailInclude/RecipeDetailRow but is written out
+ * separately to add the viewer-scoped `savedBy` where clause. */
 export async function findRecipeDetail(
   id: string,
   viewerId: string,
@@ -85,6 +100,8 @@ export async function findRecipeDetail(
   });
 }
 
+/** Used to authorize recipe mutations: caller compares the returned
+ * `ownerId` against the requester before allowing update/delete. */
 export async function findRecipeOwner(id: string, db: Db = prisma): Promise<Pick<Recipe, 'id' | 'ownerId'> | null> {
   return db.recipe.findUnique({ where: { id }, select: { id: true, ownerId: true } });
 }
@@ -108,10 +125,12 @@ export interface UpdateRecipeFields {
   imageKey?: string;
 }
 
+/** A missing recipe raises P2025, which the error middleware maps to 404. */
 export async function updateRecipeFields(id: string, data: UpdateRecipeFields, db: Db = prisma): Promise<void> {
   await db.recipe.update({ where: { id }, data });
 }
 
+/** A missing recipe raises P2025, which the error middleware maps to 404. */
 export async function deleteRecipe(id: string, db: Db = prisma): Promise<void> {
   await db.recipe.delete({ where: { id } });
 }
@@ -122,6 +141,9 @@ export interface RecipeIngredientInput {
   unit: Unit;
 }
 
+/** Used when replacing a recipe's ingredient list (paired with
+ * deleteRecipeIngredients by the caller); skips the write entirely for an
+ * empty list rather than issuing a no-op createMany. */
 export async function createRecipeIngredients(
   recipeId: string,
   ingredients: RecipeIngredientInput[],
@@ -142,6 +164,9 @@ export async function deleteRecipeIngredients(recipeId: string, db: Db = prisma)
   await db.recipeIngredient.deleteMany({ where: { recipeId } });
 }
 
+/** Used when replacing a recipe's category assignments (paired with
+ * deleteRecipeCategories by the caller); skips the write entirely for an
+ * empty list rather than issuing a no-op createMany. */
 export async function createRecipeCategories(
   recipeId: string,
   categoryIds: string[],

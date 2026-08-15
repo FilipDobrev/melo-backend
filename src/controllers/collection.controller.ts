@@ -15,6 +15,7 @@ import type {
   TypedResponse,
 } from '../types/http';
 
+/** Lists the caller's collections. */
 export async function list(
   req: AuthorizedRequest,
   res: TypedResponse<CollectionSummary[]>,
@@ -23,6 +24,7 @@ export async function list(
   res.status(200).json(collections);
 }
 
+/** Creates a collection owned by the caller. Responds 201. */
 export async function create(
   req: AuthorizedRequest<CreateCollectionInput>,
   res: TypedResponse<CollectionSummary>,
@@ -31,6 +33,7 @@ export async function create(
   res.status(201).json(collection);
 }
 
+/** Renames one of the caller's collections. */
 export async function rename(
   req: AuthorizedRequest<UpdateCollectionInput, unknown, CollectionIdParams>,
   res: TypedResponse<CollectionSummary>,
@@ -43,6 +46,7 @@ export async function rename(
   res.status(200).json(collection);
 }
 
+/** Deletes one of the caller's collections. Responds 204. */
 export async function remove(
   req: AuthorizedRequest<void, unknown, CollectionIdParams>,
   res: TypedResponse<void>,
@@ -51,6 +55,7 @@ export async function remove(
   res.status(204).send();
 }
 
+/** Lists the recipes saved in one of the caller's collections. */
 export async function listRecipes(
   req: AuthorizedRequest<void, ListCollectionRecipesQuery, CollectionIdParams>,
   res: TypedResponse<Page<SavedRecipeCard>>,
@@ -60,6 +65,7 @@ export async function listRecipes(
   res.status(200).json(page);
 }
 
+/** Adds a recipe to one of the caller's collections. Responds 204. */
 export async function addRecipe(
   req: AuthorizedRequest<AddCollectionRecipeInput, unknown, CollectionIdParams>,
   res: TypedResponse<void>,
@@ -68,6 +74,7 @@ export async function addRecipe(
   res.status(204).send();
 }
 
+/** Removes a recipe from one of the caller's collections. Responds 204. */
 export async function removeRecipe(
   req: AuthorizedRequest<void, unknown, CollectionRecipeParams>,
   res: TypedResponse<void>,

@@ -11,11 +11,13 @@ import type {
   UserIdParams,
 } from '../types/http';
 
+/** Gets the caller's own profile. */
 export async function getMe(req: AuthorizedRequest, res: TypedResponse<MeUser>): Promise<void> {
   const user = await userService.getMe(req.userId);
   res.status(200).json(user);
 }
 
+/** Updates the caller's own profile. */
 export async function updateMe(
   req: AuthorizedRequest<UpdateMeInput>,
   res: TypedResponse<MeUser>,
@@ -24,6 +26,7 @@ export async function updateMe(
   res.status(200).json(user);
 }
 
+/** Gets another user's public profile. */
 export async function getPublicProfile(
   req: UnauthorizedRequest<void, unknown, UserIdParams>,
   res: TypedResponse<PublicProfile>,
@@ -37,6 +40,7 @@ export async function getPublicProfile(
   res.status(200).json(profile);
 }
 
+/** Requests a presigned URL to upload a new avatar. */
 export async function createAvatarUploadUrl(
   req: AuthorizedRequest<AvatarUploadUrlInput>,
   res: TypedResponse<CreateUploadUrlResult>,
@@ -49,6 +53,7 @@ export async function createAvatarUploadUrl(
   res.status(200).json(result);
 }
 
+/** Searches users by name. */
 export async function searchUsers(
   req: UnauthorizedRequest<void, SearchUsersQuery>,
   res: TypedResponse<Page<PublicUser>>,

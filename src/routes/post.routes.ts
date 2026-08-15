@@ -22,6 +22,7 @@ import {
 } from '../dto/post.dto';
 import { putReactionSchema, type PutReactionInput } from '../dto/reaction.dto';
 
+/** Post routes: images, CRUD, reactions. Mounted at /posts. */
 export const postRouter = Router();
 
 postRouter.post<ParamsDictionary, unknown, CreateUploadUrlInput>(
@@ -74,8 +75,10 @@ postRouter.delete<PostIdParams>(
   ...authed(postController.deleteReaction),
 );
 
-/// Mounts on userRouter as GET /users/:userId/posts. Exported separately
-/// because this module owns posts, not the /users prefix.
+/**
+ * Mounts on userRouter as GET /users/:userId/posts. Exported separately
+ * because this module owns posts, not the /users prefix.
+ */
 export const userPostRouter = Router();
 
 userPostRouter.get<UserPostsParams>(

@@ -12,8 +12,10 @@ import {
   type CommentIdParams,
 } from '../dto/comment.dto';
 
-/// Mounted at /posts by routes/index.ts, so paths below are relative to
-/// /posts/:postId/comments.
+/**
+ * Mounted at /posts by routes/index.ts, so paths below are relative to
+ * /posts/:postId/comments.
+ */
 export const commentRouter = Router();
 
 commentRouter.post<PostIdParams, unknown, CreateCommentInput>(

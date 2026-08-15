@@ -18,10 +18,11 @@ import { followRouter } from './follow.routes';
 import { userPostRouter } from './post.routes';
 import { userRecipeRouter } from './recipe.routes';
 
+/** User routes: profile, avatar, search. Mounted at /users. */
 export const userRouter = Router();
 
-/// Sub-routers owned by the follow, cookbook, post and recipe slices.
-/// Mounted before /:userId so their literal paths win the match.
+// Sub-routers owned by the follow, cookbook, post and recipe slices.
+// Mounted before /:userId so their literal paths win the match.
 userRouter.use(collectionRouter);
 userRouter.use(cookbookListRouter);
 userRouter.use(followRouter);
@@ -31,9 +32,9 @@ userRouter.use(userRecipeRouter);
 userRouter.get('/me', ...authed(userController.getMe));
 userRouter.patch('/me', validate({ body: updateMeSchema }), ...authed(userController.updateMe));
 
-/// Literal path, so it must be registered before `/:userId`, or express
-/// would swallow it as a userId lookup instead. Mirrors the images/upload-url
-/// routes on postRouter/recipeRouter.
+// Literal path, so it must be registered before `/:userId`, or express
+// would swallow it as a userId lookup instead. Mirrors the images/upload-url
+// routes on postRouter/recipeRouter.
 userRouter.post<ParamsDictionary, unknown, AvatarUploadUrlInput>(
   '/me/avatar/upload-url',
   uploadUrlRateLimiter,

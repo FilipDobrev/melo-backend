@@ -3,6 +3,10 @@ import * as postRepository from '../repositories/post.repository';
 import * as reactionRepository from '../repositories/reaction.repository';
 import { EMPTY_REACTION_SUMMARY, type ReactionSummary } from '../repositories/reaction.repository';
 
+/**
+ * Sets (or replaces) the caller's reaction on a post.
+ * @throws {NotFoundError} if the post does not exist.
+ */
 export async function upsertReaction(
   postId: string,
   userId: string,
@@ -17,6 +21,7 @@ export async function upsertReaction(
   return summaries.get(postId) ?? EMPTY_REACTION_SUMMARY;
 }
 
+/** @throws {NotFoundError} if the post does not exist. */
 export async function removeReaction(postId: string, userId: string): Promise<void> {
   const post = await postRepository.findOwnerId(postId);
   if (!post) throw new NotFoundError('Post not found');
