@@ -22,9 +22,34 @@ export function listCollections(userId: string): Promise<CollectionSummary[]> {
   return collectionRepository.listByUser(userId);
 }
 
-/** A duplicate name is rejected by the DB's unique constraint (Prisma P2002), mapped to a 409 by the error middleware. */
-export function createCollection(userId: string, name: string): Promise<CollectionSummary> {
-  return collectionRepository.createCollection(userId, name);
+/**
+ * A duplicate name is rejected by the DB's unique constraint (Prisma P2002), mapped to a 409 by
+ * the error middleware.
+ *
+ * When `recipeId` is given, the recipe is added to the new collection (and saved to the caller's
+ * cookbook if not saved already) in the same transaction as the create - "create a collection
+ * from this recipe" is one atomic call, so an unknown recipe or a duplicate name leaves no
+ * collection behind.
+ * @throws {NotFoundError} if `recipeId` is given but does not exist.
+ */
+export async function createCollection(
+  userId: string,
+  name: string,
+  recipeId?: string,
+): Promise<CollectionSummary> {
+  if (recipeId === undefined) {
+    return collectionRepository.createCollection(userId, name);
+  }
+
+  const recipeFound = await cookbookRepository.recipeExists(recipeId);
+  if (!recipeFound) throw new NotFoundError('Recipe not found');
+
+  return prisma.$transaction(async (tx) => {
+    const collection = await collectionRepository.createCollection(userId, name, tx);
+    await cookbookRepository.ensureSave(userId, recipeId, tx);
+    await collectionRepository.addRecipe(collection.id, recipeId, tx);
+    return { ...collection, recipeCount: 1 };
+  });
 }
 
 /** @throws {NotFoundError} | {ForbiddenError} see {@link assertOwnership}. */

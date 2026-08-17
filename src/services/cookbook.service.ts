@@ -1,6 +1,8 @@
 import { NotFoundError } from '../lib/errors';
 import { toPage, type Page } from '../lib/pagination';
+import { prisma } from '../lib/prisma';
 import { resolveProfileImage } from '../lib/profileImage';
+import * as collectionRepository from '../repositories/collection.repository';
 import * as cookbookRepository from '../repositories/cookbook.repository';
 import type { SavedRecipeSummary } from '../repositories/cookbook.repository';
 import { resolveRecipeImageUrl } from './recipeImage';
@@ -35,9 +37,19 @@ export async function saveRecipe(currentUserId: string, recipeId: string): Promi
   await cookbookRepository.createSave(currentUserId, recipeId);
 }
 
-/** @throws A missing save row raises Prisma P2025, mapped to 404 by the error middleware. */
+/**
+ * Unsaving a recipe also removes it from every one of the caller's collections in the same
+ * transaction, since a collection can never reference a recipe that isn't in the cookbook (see
+ * the Collection model doc comment in schema.prisma). This information is not recoverable: a
+ * later re-save does not restore the old collection memberships.
+ * @throws A missing save row raises Prisma P2025, mapped to 404 by the error middleware; the
+ * transaction rolls back, so the caller's collections are left untouched in that case.
+ */
 export async function removeSavedRecipe(currentUserId: string, recipeId: string): Promise<void> {
-  await cookbookRepository.deleteSave(currentUserId, recipeId);
+  await prisma.$transaction(async (tx) => {
+    await cookbookRepository.deleteSave(currentUserId, recipeId, tx);
+    await collectionRepository.removeRecipeFromAllCollections(currentUserId, recipeId, tx);
+  });
 }
 
 /** Lists the recipes a user has saved, optionally filtered to a set of category slugs. */

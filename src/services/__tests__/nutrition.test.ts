@@ -10,6 +10,7 @@ function product(overrides: Partial<NutritionPer100g> & { name?: string } = {}) 
     proteinPer100g: 10,
     carbsPer100g: 10,
     fatPer100g: 10,
+    sugarPer100g: 5,
     densityGPerMl: null,
     gramsPerPiece: null,
     ...overrides,
@@ -50,7 +51,7 @@ describe('toGrams', () => {
 
 describe('recipeNutrition', () => {
   it('returns zeros for an empty ingredient list', () => {
-    expect(recipeNutrition([])).toEqual({ calories: 0, protein: 0, carbs: 0, fat: 0 });
+    expect(recipeNutrition([])).toEqual({ calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 });
   });
 
   it('sums a realistic multi-ingredient recipe', () => {
@@ -60,6 +61,7 @@ describe('recipeNutrition', () => {
       proteinPer100g: 31,
       carbsPer100g: 0,
       fatPer100g: 3.6,
+      sugarPer100g: 0,
     });
     const egg = product({
       name: 'Egg',
@@ -67,6 +69,7 @@ describe('recipeNutrition', () => {
       proteinPer100g: 12.6,
       carbsPer100g: 0.7,
       fatPer100g: 9.5,
+      sugarPer100g: 0.4,
       gramsPerPiece: 50,
     });
     const rice = product({
@@ -75,6 +78,7 @@ describe('recipeNutrition', () => {
       proteinPer100g: 2.7,
       carbsPer100g: 28.2,
       fatPer100g: 0.3,
+      sugarPer100g: 0.1,
     });
 
     const nutrition = recipeNutrition([
@@ -83,10 +87,25 @@ describe('recipeNutrition', () => {
       { quantity: 150, unit: Unit.GRAM, product: rice },
     ]);
 
-    // chicken 200g -> 330/62/0/7.2, egg 100g -> 143/12.6/0.7/9.5, rice 150g -> 195/4.05/42.3/0.45
+    // chicken 200g -> 330/62/0/7.2/0, egg 100g -> 143/12.6/0.7/9.5/0.4, rice 150g -> 195/4.05/42.3/0.45/0.15
     expect(nutrition.calories).toBeCloseTo(668, 1);
     expect(nutrition.protein).toBeCloseTo(78.6, 1);
     expect(nutrition.carbs).toBeCloseTo(43, 1);
     expect(nutrition.fat).toBeCloseTo(17.2, 1);
+    expect(nutrition.sugar).toBeCloseTo(0.55, 1);
+  });
+
+  it('follows sugar through volume conversion using the product density', () => {
+    // Honey: sugarPer100g 82, density 1.42 g/mL. 2 tbsp = 30 mL -> 42.6 g -> 34.932 g sugar.
+    const honey = product({ name: 'Honey', sugarPer100g: 82, densityGPerMl: 1.42 });
+    const nutrition = recipeNutrition([{ quantity: 2, unit: Unit.TABLESPOON, product: honey }]);
+    expect(nutrition.sugar).toBeCloseTo(34.9, 1);
+  });
+
+  it('follows sugar through per-piece conversion using gramsPerPiece', () => {
+    // Banana: sugarPer100g 12.2, gramsPerPiece 118. 2 pieces = 236g -> 28.792 g sugar.
+    const banana = product({ name: 'Banana', sugarPer100g: 12.2, gramsPerPiece: 118 });
+    const nutrition = recipeNutrition([{ quantity: 2, unit: Unit.PIECE, product: banana }]);
+    expect(nutrition.sugar).toBeCloseTo(28.8, 1);
   });
 });

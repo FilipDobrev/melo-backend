@@ -72,6 +72,7 @@ export async function createProduct(
     proteinPer100g: number;
     carbsPer100g: number;
     fatPer100g: number;
+    sugarPer100g: number;
   }> = {},
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
@@ -81,6 +82,7 @@ export async function createProduct(
     proteinPer100g: overrides.proteinPer100g ?? 10,
     carbsPer100g: overrides.carbsPer100g ?? 10,
     fatPer100g: overrides.fatPer100g ?? 5,
+    ...(overrides.sugarPer100g !== undefined ? { sugarPer100g: overrides.sugarPer100g } : {}),
   };
   const res = await request(app).post('/api/v1/products').set(...authHeader(token)).send(body);
   if (res.status !== 201) {

@@ -177,7 +177,7 @@ checked.
 | --- | --- | --- | --- |
 | GET | `/products?search=` | optional | paginated |
 | GET | `/products/:productId` | optional | |
-| POST | `/products` | yes | `{ name, caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, densityGPerMl?, gramsPerPiece? }` |
+| POST | `/products` | yes | `{ name, caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, sugarPer100g?, densityGPerMl?, gramsPerPiece? }`. `sugarPer100g` defaults to 0 |
 
 Every product response also includes `source` (string, `"manual"` for API-created products) and
 `externalId` (string or null, only set for products seeded from an external nutrition database) -
@@ -197,7 +197,7 @@ stored fields returned on every read, not just the ones accepted on create.
 | PATCH | `/recipes/:recipeId` | yes, owner | any subset of create fields (incl. `imageKey`); ingredients replace wholesale in a transaction |
 | DELETE | `/recipes/:recipeId` | yes, owner | 204 |
 | POST | `/recipes/:recipeId/save` | yes | save to cookbook, 409 on duplicate |
-| DELETE | `/recipes/:recipeId/save` | yes | 204 |
+| DELETE | `/recipes/:recipeId/save` | yes | 204. Also removes the recipe from every one of the caller's collections, in the same transaction - re-saving afterwards does not restore those memberships |
 | GET | `/users/me/cookbook?categorySlugs=` | yes | paginated saved recipes |
 | POST | `/recipes/images/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }` presigned PUT, key under `recipes/<userId>/`. Same contract as `/posts/images/upload-url` |
 | GET | `/recipes/image-presets` | no | `[{ slug, label, url }]`, the built-in image choices |
@@ -222,19 +222,22 @@ app assets, not storage objects, and are never checked against storage.
 
 A collection is a user-owned folder inside the cookbook. Adding a recipe to a
 collection also saves it to the cookbook, so the cookbook is always the superset.
-Removing it from a collection leaves the cookbook save alone.
+Removing it from a collection leaves the cookbook save alone. Unsaving a recipe
+(`DELETE /recipes/:recipeId/save`) is the other direction of that same invariant:
+it removes the recipe from every one of the caller's collections, not just the
+cookbook, since a collection can never reference a recipe that isn't saved.
 
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
 | GET | `/users/me/collections` | yes | full list, not paginated, each with `recipeCount` |
-| POST | `/users/me/collections` | yes | `{ name }` -> 201, 409 on duplicate name |
+| POST | `/users/me/collections` | yes | `{ name, recipeId? }` -> 201, 409 on duplicate name. When `recipeId` is given it is added to the new collection (and saved to the cookbook) atomically with the create; an unknown `recipeId` is 404 and no collection is created |
 | PATCH | `/users/me/collections/:collectionId` | yes, owner | `{ name }` |
 | DELETE | `/users/me/collections/:collectionId` | yes, owner | 204, does not unsave the recipes |
 | GET | `/users/me/collections/:collectionId/recipes` | yes, owner | paginated |
 | POST | `/users/me/collections/:collectionId/recipes` | yes, owner | `{ recipeId }` -> 204, 409 on duplicate |
 | DELETE | `/users/me/collections/:collectionId/recipes/:recipeId` | yes, owner | 204 |
 
-`nutrition` = `{ calories, protein, carbs, fat }`, totals for the whole recipe.
+`nutrition` = `{ calories, protein, carbs, fat, sugar }`, totals for the whole recipe.
 `unit` enum: `GRAM KILOGRAM MILLILITRE LITRE CUP TABLESPOON TEASPOON PIECE`.
 
 ## Posts

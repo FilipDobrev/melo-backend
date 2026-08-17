@@ -26,6 +26,7 @@ function buildRow(overrides: Partial<PostCardRow> = {}): PostCardRow {
             proteinPer100g: 13,
             carbsPer100g: 1,
             fatPer100g: 11,
+            sugarPer100g: 0.4,
             densityGPerMl: null,
             gramsPerPiece: null,
           },
@@ -84,6 +85,7 @@ describe('toPostResponse', () => {
               proteinPer100g: 13,
               carbsPer100g: 1,
               fatPer100g: 11,
+              sugarPer100g: 0.4,
               densityGPerMl: null,
               gramsPerPiece: null,
             },
@@ -97,7 +99,7 @@ describe('toPostResponse', () => {
     expect(response.recipe).toEqual({
       id: 'recipe-1',
       title: 'Omelette',
-      nutrition: { calories: 300, protein: 26, carbs: 2, fat: 22 },
+      nutrition: { calories: 300, protein: 26, carbs: 2, fat: 22, sugar: 0.8 },
       isSaved: false,
     });
   });

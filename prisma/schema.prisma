@@ -91,6 +91,7 @@ model Product {
   proteinPer100g  Float
   carbsPer100g    Float
   fatPer100g      Float
+  sugarPer100g    Float    @default(0)
   densityGPerMl   Float?
   gramsPerPiece   Float?
   createdAt      DateTime @default(now())

@@ -20,6 +20,7 @@ function buildProduct(overrides: Partial<RecipeDetailRow['ingredients'][number][
     proteinPer100g: 31,
     carbsPer100g: 0,
     fatPer100g: 3.6,
+    sugarPer100g: 0,
     densityGPerMl: null,
     gramsPerPiece: null,
     createdAt: now,
@@ -61,6 +62,7 @@ function buildRecipeDetail(overrides: Partial<RecipeDetailRow> = {}): RecipeDeta
           proteinPer100g: 2.7,
           carbsPer100g: 28.2,
           fatPer100g: 0.3,
+          sugarPer100g: 0.1,
         }),
       },
     ],
@@ -94,11 +96,13 @@ describe('toRecipeDetail', () => {
   it('computes nutrition totals from the joined ingredients', () => {
     const detail = toRecipeDetail(buildRecipeDetail());
 
-    // chicken 200g -> 330/62/0/7.2, rice 150g -> 195/4.05/42.3/0.45
+    // chicken 200g -> 330/62/0/7.2/0, rice 150g -> 195/4.05/42.3/0.45/0.15
     expect(detail.nutrition.calories).toBeCloseTo(525, 1);
     expect(detail.nutrition.protein).toBeCloseTo(66.05, 1);
     expect(detail.nutrition.carbs).toBeCloseTo(42.3, 1);
     expect(detail.nutrition.fat).toBeCloseTo(7.65, 1);
+    // Rounded to one decimal place (round-half-up), like every other macro.
+    expect(detail.nutrition.sugar).toBeCloseTo(0.2, 1);
   });
 
   it('reports isSaved false when savedBy is empty', () => {

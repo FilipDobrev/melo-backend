@@ -34,6 +34,7 @@ export const POST_CARD_SELECT = {
               proteinPer100g: true,
               carbsPer100g: true,
               fatPer100g: true,
+              sugarPer100g: true,
               densityGPerMl: true,
               gramsPerPiece: true,
             },

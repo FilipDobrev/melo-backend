@@ -10,6 +10,7 @@ export const createProductSchema = z.object({
   proteinPer100g: nutritionValueSchema,
   carbsPer100g: nutritionValueSchema,
   fatPer100g: nutritionValueSchema,
+  sugarPer100g: nutritionValueSchema.default(0),
   densityGPerMl: nutritionValueSchema.nullable().optional(),
   gramsPerPiece: nutritionValueSchema.nullable().optional(),
 });
