@@ -126,21 +126,28 @@ Purging a user, in order:
    email `deleted-accounts@melo.invalid` - the `.invalid` TLD is reserved by
    RFC 2606 and can never receive mail - and a bcrypt hash of a random value
    nobody knows, so it can never be logged into) before the user row is
-   touched, created idempotently on first use. Every other recipe the user
-   owns is left alone and removed by the cascade in step 3.
+   touched, created idempotently on first use. In that same update, the
+   recipe's `imageKey` is cleared to `null`: the dependent post only needs
+   the recipe's title, ingredients and nutrition to render, not its
+   photograph, and the photograph is the departing user's own personal data
+   (potentially carrying GPS coordinates, since this API never strips EXIF)
+   that an erasure request should remove along with everything else they
+   own. The recipe still renders fine afterwards - a null `imageKey`
+   resolves to the default preset image. Every other recipe the user owns
+   is left alone here and removed by the cascade in step 3.
 2. **Delete stored images.** Everything under `posts/<userId>/`,
    `recipes/<userId>/` and `avatars/<userId>/` is deleted from object
-   storage, except the image keys of recipes just reassigned in step 1 -
-   those objects are still referenced by a retained recipe, even though it
-   now belongs to the tombstone account, because the storage key itself
-   never moves. A storage failure on one of the three prefixes is logged at
-   error level and does **not** abort the purge: the database deletion still
-   runs. Database erasure is what actually satisfies "the account and its
-   data are gone" (GDPR erasure, Play Store account-deletion requirements);
-   a handful of orphaned images left behind by a storage outage is a
-   recoverable cleanup detail, not a reason to leave a "pending deletion"
-   account stuck forever. The failure is never silently swallowed - it's
-   logged per-prefix and included in the purge's summary log line.
+   storage, with no exception for retained recipes - their `imageKey` was
+   already cleared in step 1, so nothing in the database points at these
+   objects anymore. A storage failure on one of the three prefixes is
+   logged at error level and does **not** abort the purge: the database
+   deletion still runs. Database erasure is what actually satisfies "the
+   account and its data are gone" (GDPR erasure, Play Store
+   account-deletion requirements); a handful of orphaned images left behind
+   by a storage outage is a recoverable cleanup detail, not a reason to
+   leave a "pending deletion" account stuck forever. The failure is never
+   silently swallowed - it's logged per-prefix and included in the purge's
+   summary log line.
 3. **Delete the user row.** The schema's existing cascades remove
    everything else: remaining recipes, posts, comments, reactions, follows,
    cookbook saves, collections and refresh tokens.
