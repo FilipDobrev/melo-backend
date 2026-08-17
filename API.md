@@ -177,11 +177,41 @@ checked.
 | --- | --- | --- | --- |
 | GET | `/products?search=` | optional | paginated |
 | GET | `/products/:productId` | optional | |
-| POST | `/products` | yes | `{ name, caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, sugarPer100g?, densityGPerMl?, gramsPerPiece? }`. `sugarPer100g` defaults to 0 |
+| POST | `/products` | yes | `{ name, caloriesPer100g, proteinPer100g, carbsPer100g, fatPer100g, sugarPer100g?, densityGPerMl?, gramsPerPiece?, gramsPerCup?, gramsPerTablespoon?, gramsPerTeaspoon? }`. `sugarPer100g` defaults to 0 |
 
 Every product response also includes `source` (string, `"manual"` for API-created products) and
 `externalId` (string or null, only set for products seeded from an external nutrition database) -
 stored fields returned on every read, not just the ones accepted on create.
+
+### Volume unit conversion and why guessing was removed
+
+Recipe ingredients can be measured by GRAM, KILOGRAM, PIECE, CUP, TABLESPOON, TEASPOON,
+MILLILITRE or LITRE. PIECE requires the product to carry `gramsPerPiece`. The volume units
+(CUP/TABLESPOON/TEASPOON/MILLILITRE/LITRE) require the product to carry the relevant measure
+weight - `gramsPerCup`, `gramsPerTablespoon`, `gramsPerTeaspoon`, or `densityGPerMl` - and the
+API returns `400` when it does not, instead of guessing.
+
+We used to fall back to the density of water (`densityGPerMl ?? 1`) for any product without a
+recorded density. That silently treated every dry solid without a density as water: 200 mL of
+almonds computed as 200 g (about 1158 kcal) when whole almonds pack at roughly 0.55 g/mL and the
+honest answer is closer to 110 g (about 640 kcal) - roughly 80% too high, with no error or warning.
+The deeper problem is that a single density is the wrong model for solids at all: USDA does not
+publish densities for foods like this, it publishes measured gram weights per household portion,
+because a cup of whole almonds, sliced almonds and ground almonds are three different weights.
+So a missing density is no longer treated as "must be water" - it is treated as "we don't know",
+and the request is rejected.
+
+Resolution order per unit (each step is a fallback used only when the previous one is null):
+- **CUP**: `gramsPerCup`, else `densityGPerMl * 240`, else 400.
+- **TABLESPOON**: `gramsPerTablespoon`, else `gramsPerCup / 16`, else `densityGPerMl * 15`, else 400.
+- **TEASPOON**: `gramsPerTeaspoon`, else `gramsPerTablespoon / 3`, else `gramsPerCup / 48`, else
+  `densityGPerMl * 5`, else 400.
+- **MILLILITRE / LITRE**: `densityGPerMl`, else a density derived from `gramsPerCup / 240`, else 400.
+
+`densityGPerMl` remains the right model for true liquids (milk, oil, honey) and is used directly
+for MILLILITRE/LITRE and as a last-resort fallback for the others. Products where a volume measure
+makes no physical sense (chicken breast, salmon fillet, whole eggs) intentionally carry none of
+these fields, so measuring them by volume correctly fails with 400 rather than returning a number.
 
 ## Categories
 | Method | Path | Auth | Notes |
