@@ -1,13 +1,7 @@
 import { parseUsdaCsv } from './csv';
 import { requiredNutrientCsvColumns, resolveNutrientIds } from './nutrients';
 import { mapFoodToProduct, REQUIRED_FOOD_COLUMNS, REQUIRED_FOOD_NUTRIENT_COLUMNS, resolveFoodNutrients } from './mapProduct';
-import {
-  derivePortionsForFood,
-  groupPortionsByFood,
-  joinPortionRows,
-  REQUIRED_MEASURE_UNIT_COLUMNS,
-  REQUIRED_PORTION_COLUMNS,
-} from './portions';
+import { derivePortionsForFood, groupPortionsByFood, parsePortionRows, REQUIRED_PORTION_COLUMNS } from './portions';
 import type { RequiredFile } from './archive';
 import type { ImportSummary, NutrientKey, UsdaProductRecord } from './types';
 
@@ -32,11 +26,8 @@ export function buildImportPlan(files: Record<RequiredFile, Buffer>): ImportPlan
   const nutrientRows = parseUsdaCsv(files['nutrient.csv'], 'nutrient.csv', requiredNutrientCsvColumns());
   const nutrientIds = resolveNutrientIds(nutrientRows);
 
-  const measureUnitRows = parseUsdaCsv(files['measure_unit.csv'], 'measure_unit.csv', REQUIRED_MEASURE_UNIT_COLUMNS);
-  const measureUnitsById = new Map(measureUnitRows.map((row) => [row.id ?? '', (row.name ?? '').toLowerCase()]));
-
   const portionRows = parseUsdaCsv(files['food_portion.csv'], 'food_portion.csv', REQUIRED_PORTION_COLUMNS);
-  const portionsByFood = groupPortionsByFood(joinPortionRows(portionRows, measureUnitsById));
+  const portionsByFood = groupPortionsByFood(parsePortionRows(portionRows));
 
   const wantedNutrientIds = new Set(Object.values(nutrientIds));
   const foodNutrientRows = parseUsdaCsv(files['food_nutrient.csv'], 'food_nutrient.csv', REQUIRED_FOOD_NUTRIENT_COLUMNS);
@@ -54,7 +45,13 @@ export function buildImportPlan(files: Record<RequiredFile, Buffer>): ImportPlan
   const records: UsdaProductRecord[] = [];
   const skippedReasons: string[] = [];
   const missingNutrientCounts: Record<NutrientKey, number> = { calories: 0, protein: 0, fat: 0, carbs: 0, sugar: 0 };
-  const missingPortionCounts = { gramsPerCup: 0, gramsPerTablespoon: 0, gramsPerTeaspoon: 0, gramsPerPiece: 0 };
+  const missingPortionCounts = {
+    gramsPerCup: 0,
+    gramsPerTablespoon: 0,
+    gramsPerTeaspoon: 0,
+    gramsPerPiece: 0,
+    densityGPerMl: 0,
+  };
 
   for (const foodRow of foodRows) {
     const fdcId = foodRow.fdc_id ?? '';
@@ -81,6 +78,7 @@ export function buildImportPlan(files: Record<RequiredFile, Buffer>): ImportPlan
     if (portions.gramsPerTablespoon === null) missingPortionCounts.gramsPerTablespoon += 1;
     if (portions.gramsPerTeaspoon === null) missingPortionCounts.gramsPerTeaspoon += 1;
     if (portions.gramsPerPiece === null) missingPortionCounts.gramsPerPiece += 1;
+    if (portions.densityGPerMl === null) missingPortionCounts.densityGPerMl += 1;
 
     records.push(mapFoodToProduct(foodRow, nutrients, portions));
   }

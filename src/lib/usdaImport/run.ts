@@ -72,6 +72,7 @@ async function writeChunked(
             gramsPerTablespoon: record.gramsPerTablespoon,
             gramsPerTeaspoon: record.gramsPerTeaspoon,
             gramsPerPiece: record.gramsPerPiece,
+            densityGPerMl: record.densityGPerMl,
           },
           create: record,
         }),

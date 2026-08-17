@@ -55,7 +55,13 @@ describe('mapFoodToProduct', () => {
       values: { calories: 52, protein: 0.3, fat: 0.2, carbs: 13.8, sugar: 10.4 },
       missing: [] as NutrientKey[],
     };
-    const portions = { gramsPerCup: 109, gramsPerTablespoon: null, gramsPerTeaspoon: null, gramsPerPiece: 182 };
+    const portions = {
+      gramsPerCup: 109,
+      gramsPerTablespoon: null,
+      gramsPerTeaspoon: null,
+      gramsPerPiece: 182,
+      densityGPerMl: null,
+    };
 
     const product = mapFoodToProduct(foodRow, nutrients, portions);
 
@@ -72,6 +78,7 @@ describe('mapFoodToProduct', () => {
       gramsPerTablespoon: null,
       gramsPerTeaspoon: null,
       gramsPerPiece: 182,
+      densityGPerMl: null,
     });
   });
 });
