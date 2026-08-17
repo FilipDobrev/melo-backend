@@ -24,6 +24,9 @@ get:
 post:
   operationId: createCollection
   summary: Create a collection
+  description: >-
+    Optionally takes a `recipeId` to add as the collection's first recipe,
+    atomically with the create - see CreateCollectionRequest.
   tags: [Collections]
   security:
     - bearerAuth: []
@@ -35,15 +38,25 @@ post:
           $ref: '../../components/requests/CreateCollectionRequest.yaml'
   responses:
     '201':
-      description: The created collection.
+      description: The created collection. `recipeCount` is 1 if `recipeId` was given, otherwise 0.
       content:
         application/json:
           schema:
             $ref: '../../components/schemas/CollectionSummary.yaml'
     '401':
       $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      description: Unknown recipeId. No collection is created.
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/Error.yaml'
+          example:
+            error:
+              code: NOT_FOUND
+              message: Recipe not found
     '409':
-      description: The caller already has a collection with this name.
+      description: The caller already has a collection with this name. No collection is created.
       content:
         application/json:
           schema:

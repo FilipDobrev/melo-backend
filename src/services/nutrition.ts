@@ -15,6 +15,7 @@ export interface NutritionPer100g {
   proteinPer100g: number;
   carbsPer100g: number;
   fatPer100g: number;
+  sugarPer100g: number;
   densityGPerMl: number | null;
   gramsPerPiece: number | null;
 }
@@ -24,6 +25,7 @@ export interface Nutrition {
   protein: number;
   carbs: number;
   fat: number;
+  sugar: number;
 }
 
 export interface IngredientAmount {
@@ -72,6 +74,7 @@ export function ingredientNutrition(ingredient: IngredientAmount): Nutrition {
     protein: product.proteinPer100g * factor,
     carbs: product.carbsPer100g * factor,
     fat: product.fatPer100g * factor,
+    sugar: product.sugarPer100g * factor,
   };
 }
 
@@ -89,9 +92,10 @@ export function recipeNutrition(ingredients: IngredientAmount[]): Nutrition {
         protein: acc.protein + value.protein,
         carbs: acc.carbs + value.carbs,
         fat: acc.fat + value.fat,
+        sugar: acc.sugar + value.sugar,
       };
     },
-    { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0 },
   );
 
   return round(total);
@@ -103,5 +107,6 @@ function round(nutrition: Nutrition): Nutrition {
     protein: Math.round(nutrition.protein * 10) / 10,
     carbs: Math.round(nutrition.carbs * 10) / 10,
     fat: Math.round(nutrition.fat * 10) / 10,
+    sugar: Math.round(nutrition.sugar * 10) / 10,
   };
 }

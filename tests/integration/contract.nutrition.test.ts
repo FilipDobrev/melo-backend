@@ -7,19 +7,21 @@ describe('recipe nutrition totals over a real HTTP round trip', () => {
   it('sums per-ingredient nutrition computed from stored per-100g product values', async () => {
     const owner = await registerUser(app);
 
-    // 100 g chicken (per 100g: 165 kcal / 31 P / 0 C / 3.6 F)
+    // 100 g chicken (per 100g: 165 kcal / 31 P / 0 C / 3.6 F / 0 sugar)
     const chicken = await createProduct(app, owner.accessToken, {
       caloriesPer100g: 165,
       proteinPer100g: 31,
       carbsPer100g: 0,
       fatPer100g: 3.6,
+      sugarPer100g: 0,
     });
-    // 150 g rice (per 100g: 130 kcal / 2.7 P / 28.2 C / 0.3 F)
+    // 150 g rice (per 100g: 130 kcal / 2.7 P / 28.2 C / 0.3 F / 0.2 sugar)
     const rice = await createProduct(app, owner.accessToken, {
       caloriesPer100g: 130,
       proteinPer100g: 2.7,
       carbsPer100g: 28.2,
       fatPer100g: 0.3,
+      sugarPer100g: 0.2,
     });
 
     const createRes = await request(app)
@@ -37,11 +39,12 @@ describe('recipe nutrition totals over a real HTTP round trip', () => {
       });
     expect(createRes.status).toBe(201);
 
-    // Expected totals: 330+195=525 kcal, 62+4.05=66.05 P, 0+42.3=42.3 C, 7.2+0.45=7.65 F
+    // Expected totals: 330+195=525 kcal, 62+4.05=66.05 P, 0+42.3=42.3 C, 7.2+0.45=7.65 F, 0+0.3=0.3 sugar
     expect(createRes.body.nutrition.calories).toBeCloseTo(525, 1);
     expect(createRes.body.nutrition.protein).toBeCloseTo(66.05, 1);
     expect(createRes.body.nutrition.carbs).toBeCloseTo(42.3, 1);
     expect(createRes.body.nutrition.fat).toBeCloseTo(7.65, 1);
+    expect(createRes.body.nutrition.sugar).toBeCloseTo(0.3, 1);
 
     // GET must recompute the same totals from the persisted rows, not just
     // echo back the create response.

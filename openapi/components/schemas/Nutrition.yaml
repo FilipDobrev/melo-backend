@@ -5,6 +5,7 @@ required:
   - protein
   - carbs
   - fat
+  - sugar
 properties:
   calories:
     type: number
@@ -16,5 +17,8 @@ properties:
     type: number
     minimum: 0
   fat:
+    type: number
+    minimum: 0
+  sugar:
     type: number
     minimum: 0

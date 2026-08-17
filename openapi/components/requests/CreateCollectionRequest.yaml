@@ -6,3 +6,11 @@ properties:
     type: string
     minLength: 1
     maxLength: 60
+  recipeId:
+    type: string
+    format: uuid
+    description: >-
+      When given, this recipe is added to the new collection (and saved to the
+      caller's cookbook if not saved already) as part of creating it, in the
+      same transaction. An unknown recipeId is a 404 and no collection is
+      created.

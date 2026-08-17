@@ -29,7 +29,7 @@ export async function create(
   req: AuthorizedRequest<CreateCollectionInput>,
   res: TypedResponse<CollectionSummary>,
 ): Promise<void> {
-  const collection = await collectionService.createCollection(req.userId, req.body.name);
+  const collection = await collectionService.createCollection(req.userId, req.body.name, req.body.recipeId);
   res.status(201).json(collection);
 }
 

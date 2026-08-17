@@ -24,6 +24,11 @@ properties:
   fatPer100g:
     type: number
     minimum: 0
+  sugarPer100g:
+    type: number
+    minimum: 0
+    default: 0
+    description: Omit to default to 0, the honest value for products with no recorded sugar.
   densityGPerMl:
     type:
       - number

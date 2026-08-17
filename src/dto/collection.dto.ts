@@ -3,6 +3,8 @@ import { cursorPaginationSchema } from '../lib/pagination';
 
 export const createCollectionSchema = z.object({
   name: z.string().trim().min(1).max(60),
+  /** When given, the recipe is added to the new collection as part of creating it. */
+  recipeId: z.string().uuid().optional(),
 });
 export type CreateCollectionInput = z.infer<typeof createCollectionSchema>;
 

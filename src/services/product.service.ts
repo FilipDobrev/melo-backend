@@ -31,6 +31,7 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
     proteinPer100g: input.proteinPer100g,
     carbsPer100g: input.carbsPer100g,
     fatPer100g: input.fatPer100g,
+    sugarPer100g: input.sugarPer100g,
     densityGPerMl: input.densityGPerMl ?? null,
     gramsPerPiece: input.gramsPerPiece ?? null,
   });

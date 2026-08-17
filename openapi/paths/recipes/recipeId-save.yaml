@@ -23,7 +23,14 @@ post:
 delete:
   operationId: removeSavedRecipe
   summary: Unsave a recipe from the cookbook
-  description: 404 if the caller has not saved this recipe (or the recipe does not exist).
+  description: >-
+    404 if the caller has not saved this recipe (or the recipe does not
+    exist). Also removes the recipe from every one of the caller's
+    collections, in the same transaction as the unsave - the cookbook is
+    always the superset of every collection's contents, so a recipe can
+    never stay filed under a collection after it stops being saved. Only the
+    caller's own collections are affected. This is destructive: re-saving
+    the recipe afterwards does not restore its old collection memberships.
   tags: [Recipes]
   security:
     - bearerAuth: []

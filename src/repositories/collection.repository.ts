@@ -101,6 +101,24 @@ export async function removeRecipe(
   });
 }
 
+/**
+ * Removes a recipe from every one of one user's collections. Used when unsaving a recipe: the
+ * cookbook is always the superset of every collection's contents (see the Collection model doc
+ * comment in schema.prisma), so a save can never be removed while a collection still references
+ * it. Scoped to `userId` via the collection relation, so another user's collection containing the
+ * same recipe is never touched. A no-op (matches zero rows) when the recipe was not filed under
+ * any of the user's collections.
+ */
+export async function removeRecipeFromAllCollections(
+  userId: string,
+  recipeId: string,
+  db: Db = prisma,
+): Promise<void> {
+  await db.collectionRecipe.deleteMany({
+    where: { recipeId, collection: { userId } },
+  });
+}
+
 /** Select shape backing SavedRecipeSummary; mirrors cookbook.repository.ts's
  * savedRecipeSelect (kept local rather than imported/shared). */
 const savedRecipeSelect = {
