@@ -1,14 +1,10 @@
 import { Unit } from '@prisma/client';
 import { BadRequestError } from '../lib/errors';
 
-/** Volume units expressed in millilitres. US customary measures. */
-const MILLILITRES_PER_UNIT: Partial<Record<Unit, number>> = {
-  [Unit.MILLILITRE]: 1,
-  [Unit.LITRE]: 1000,
-  [Unit.CUP]: 240,
-  [Unit.TABLESPOON]: 15,
-  [Unit.TEASPOON]: 5,
-};
+const ML_PER_LITRE = 1000;
+const ML_PER_CUP = 240;
+const ML_PER_TABLESPOON = 15;
+const ML_PER_TEASPOON = 5;
 
 export interface NutritionPer100g {
   caloriesPer100g: number;
@@ -18,6 +14,9 @@ export interface NutritionPer100g {
   sugarPer100g: number;
   densityGPerMl: number | null;
   gramsPerPiece: number | null;
+  gramsPerCup: number | null;
+  gramsPerTablespoon: number | null;
+  gramsPerTeaspoon: number | null;
 }
 
 export interface Nutrition {
@@ -35,11 +34,33 @@ export interface IngredientAmount {
 }
 
 /**
- * Converts an ingredient amount to grams. Volume conversion assumes the density of water when
- * the product does not define one, which is accurate for liquids and a documented approximation
- * elsewhere.
+ * Converts an ingredient amount to grams.
+ *
+ * GRAM and KILOGRAM are exact conversions. PIECE requires gramsPerPiece.
+ *
+ * Volume units (CUP, TABLESPOON, TEASPOON, MILLILITRE, LITRE) resolve to a
+ * gram weight in this order, falling through to the next rule only when the
+ * previous one is unavailable, and refusing outright when none apply. A
+ * single density is the wrong model for solids - a cup of whole almonds,
+ * sliced almonds and flour all weigh different amounts per cup - so we
+ * prefer USDA-style measured household weights and only fall back to
+ * density (the correct model for true liquids) when no measured weight is
+ * recorded:
+ *   - CUP: gramsPerCup. Else densityGPerMl * 240 mL. Else refuse.
+ *   - TABLESPOON: gramsPerTablespoon. Else gramsPerCup / 16. Else
+ *     densityGPerMl * 15 mL. Else refuse.
+ *   - TEASPOON: gramsPerTeaspoon. Else gramsPerTablespoon / 3. Else
+ *     gramsPerCup / 48. Else densityGPerMl * 5 mL. Else refuse.
+ *   - MILLILITRE / LITRE: densityGPerMl. Else a density derived from
+ *     gramsPerCup / 240. Else refuse.
+ *
+ * Refusing means throwing BadRequestError, exactly like the PIECE branch
+ * does for a missing gramsPerPiece: a 400 saying a product cannot be
+ * measured this way is correct, a confidently wrong gram figure is not.
+ *
  * @throws {BadRequestError} if quantity is negative or non-finite, if the unit is PIECE but the
- * product has no gramsPerPiece, or if the unit is otherwise unrecognized.
+ * product has no gramsPerPiece, if the unit is a volume unit the product cannot be converted for,
+ * or if the unit is otherwise unrecognized.
  */
 export function toGrams(quantity: number, unit: Unit, product: NutritionPer100g & { name: string }): number {
   if (!Number.isFinite(quantity) || quantity < 0) {
@@ -56,12 +77,61 @@ export function toGrams(quantity: number, unit: Unit, product: NutritionPer100g 
     return quantity * product.gramsPerPiece;
   }
 
-  const millilitres = MILLILITRES_PER_UNIT[unit];
-  if (millilitres === undefined) {
-    throw new BadRequestError(`Unsupported unit "${unit}"`);
+  if (isVolumeUnit(unit)) {
+    const gramsPerUnit = resolveGramsPerVolumeUnit(unit, product);
+    if (gramsPerUnit === null) {
+      throw new BadRequestError(`Product "${product.name}" cannot be measured by ${unit}`);
+    }
+    return quantity * gramsPerUnit;
   }
-  const density = product.densityGPerMl ?? 1;
-  return quantity * millilitres * density;
+
+  throw new BadRequestError(`Unsupported unit "${unit}"`);
+}
+
+function isVolumeUnit(unit: Unit): boolean {
+  return (
+    unit === Unit.CUP ||
+    unit === Unit.TABLESPOON ||
+    unit === Unit.TEASPOON ||
+    unit === Unit.MILLILITRE ||
+    unit === Unit.LITRE
+  );
+}
+
+/** Implements the fallback chain documented on {@link toGrams}. Returns null when nothing applies. */
+function resolveGramsPerVolumeUnit(unit: Unit, product: NutritionPer100g): number | null {
+  switch (unit) {
+    case Unit.CUP:
+      if (product.gramsPerCup !== null) return product.gramsPerCup;
+      if (product.densityGPerMl !== null) return product.densityGPerMl * ML_PER_CUP;
+      return null;
+    case Unit.TABLESPOON:
+      if (product.gramsPerTablespoon !== null) return product.gramsPerTablespoon;
+      if (product.gramsPerCup !== null) return product.gramsPerCup / 16;
+      if (product.densityGPerMl !== null) return product.densityGPerMl * ML_PER_TABLESPOON;
+      return null;
+    case Unit.TEASPOON:
+      if (product.gramsPerTeaspoon !== null) return product.gramsPerTeaspoon;
+      if (product.gramsPerTablespoon !== null) return product.gramsPerTablespoon / 3;
+      if (product.gramsPerCup !== null) return product.gramsPerCup / 48;
+      if (product.densityGPerMl !== null) return product.densityGPerMl * ML_PER_TEASPOON;
+      return null;
+    case Unit.MILLILITRE:
+      return resolveDensity(product);
+    case Unit.LITRE: {
+      const density = resolveDensity(product);
+      return density === null ? null : density * ML_PER_LITRE;
+    }
+    default:
+      return null;
+  }
+}
+
+/** densityGPerMl if set, else a density derived from gramsPerCup. Null when neither is known. */
+function resolveDensity(product: NutritionPer100g): number | null {
+  if (product.densityGPerMl !== null) return product.densityGPerMl;
+  if (product.gramsPerCup !== null) return product.gramsPerCup / ML_PER_CUP;
+  return null;
 }
 
 /** @throws {BadRequestError} see {@link toGrams}. */

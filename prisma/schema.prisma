@@ -76,9 +76,12 @@ model Follow {
   @@index([followingId])
 }
 
-/// Nutrition is stored per 100 g. Volume and piece units convert via
-/// densityGPerMl / gramsPerPiece, which are null when the product cannot
-/// be measured that way.
+/// Nutrition is stored per 100 g. Piece units convert via gramsPerPiece,
+/// null when the product cannot be measured that way. Volume units convert
+/// via densityGPerMl (true for liquids) or, for solids, the USDA-style
+/// measured household weights gramsPerCup / gramsPerTablespoon /
+/// gramsPerTeaspoon - see src/services/nutrition.ts for the resolution
+/// order. All four are null when the product cannot be measured that way.
 /// `source` + `externalId` identify a row in its originating dataset, e.g.
 /// the USDA SR food id. They make a bulk backfill idempotent and re-runnable.
 /// Name is deliberately NOT unique: SR descriptions collide and are verbose.
@@ -94,6 +97,9 @@ model Product {
   sugarPer100g    Float    @default(0)
   densityGPerMl   Float?
   gramsPerPiece   Float?
+  gramsPerCup        Float?
+  gramsPerTablespoon Float?
+  gramsPerTeaspoon   Float?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

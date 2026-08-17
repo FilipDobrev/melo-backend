@@ -13,6 +13,9 @@ export const createProductSchema = z.object({
   sugarPer100g: nutritionValueSchema.default(0),
   densityGPerMl: nutritionValueSchema.nullable().optional(),
   gramsPerPiece: nutritionValueSchema.nullable().optional(),
+  gramsPerCup: nutritionValueSchema.nullable().optional(),
+  gramsPerTablespoon: nutritionValueSchema.nullable().optional(),
+  gramsPerTeaspoon: nutritionValueSchema.nullable().optional(),
 });
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 

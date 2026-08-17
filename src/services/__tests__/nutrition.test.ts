@@ -13,6 +13,9 @@ function product(overrides: Partial<NutritionPer100g> & { name?: string } = {}) 
     sugarPer100g: 5,
     densityGPerMl: null,
     gramsPerPiece: null,
+    gramsPerCup: null,
+    gramsPerTablespoon: null,
+    gramsPerTeaspoon: null,
     ...overrides,
   };
 }
@@ -32,10 +35,61 @@ describe('toGrams', () => {
     expect(toGrams(2, Unit.TABLESPOON, oliveOil)).toBeCloseTo(2 * 15 * 0.91, 5);
   });
 
-  it('falls back to water density when the product has no density', () => {
-    const water = product({ name: 'Water', densityGPerMl: null });
+  it('converts millilitres and litres unchanged for a liquid with a real density (no regression)', () => {
+    const water = product({ name: 'Water', densityGPerMl: 1.0 });
     expect(toGrams(250, Unit.MILLILITRE, water)).toBe(250);
     expect(toGrams(1, Unit.LITRE, water)).toBe(1000);
+
+    const oliveOil = product({ name: 'Olive oil', densityGPerMl: 0.91 });
+    expect(toGrams(500, Unit.MILLILITRE, oliveOil)).toBeCloseTo(500 * 0.91, 5);
+  });
+
+  it('uses gramsPerCup exactly for CUP when set', () => {
+    const flour = product({ name: 'All-purpose flour', gramsPerCup: 125 });
+    expect(toGrams(2, Unit.CUP, flour)).toBe(250);
+  });
+
+  it('falls back to gramsPerCup / 16 for TABLESPOON when no tablespoon weight exists', () => {
+    const flour = product({ name: 'All-purpose flour', gramsPerCup: 128 });
+    expect(toGrams(1, Unit.TABLESPOON, flour)).toBeCloseTo(128 / 16, 5);
+  });
+
+  it('prefers gramsPerTablespoon over gramsPerCup for TABLESPOON when both are set', () => {
+    const flour = product({ name: 'All-purpose flour', gramsPerCup: 128, gramsPerTablespoon: 8 });
+    expect(toGrams(1, Unit.TABLESPOON, flour)).toBe(8);
+  });
+
+  it('falls back through tablespoon then cup for TEASPOON', () => {
+    const withTablespoon = product({ name: 'Sugar', gramsPerTablespoon: 12 });
+    expect(toGrams(1, Unit.TEASPOON, withTablespoon)).toBeCloseTo(12 / 3, 5);
+
+    const withCupOnly = product({ name: 'Sugar', gramsPerCup: 200 });
+    expect(toGrams(1, Unit.TEASPOON, withCupOnly)).toBeCloseTo(200 / 48, 5);
+
+    const withTeaspoon = product({ name: 'Sugar', gramsPerTablespoon: 12, gramsPerTeaspoon: 5 });
+    expect(toGrams(1, Unit.TEASPOON, withTeaspoon)).toBe(5);
+  });
+
+  it('derives a density from gramsPerCup for MILLILITRE when no density is set', () => {
+    const flour = product({ name: 'All-purpose flour', gramsPerCup: 120, densityGPerMl: null });
+    expect(toGrams(240, Unit.MILLILITRE, flour)).toBeCloseTo(120, 5);
+    expect(toGrams(1, Unit.LITRE, flour)).toBeCloseTo((120 / 240) * 1000, 5);
+  });
+
+  it('the almonds regression: 200 mL of almonds must not come out as 200 g', () => {
+    // Whole almonds: ~143 g/cup (USDA), so density derives to 143/240 ≈ 0.596 g/mL.
+    const almonds = product({ name: 'Almonds', gramsPerCup: 143 });
+    const grams = toGrams(200, Unit.MILLILITRE, almonds);
+    expect(grams).not.toBe(200);
+    expect(grams).toBeCloseTo((143 / 240) * 200, 5);
+    expect(grams).toBeLessThan(150);
+  });
+
+  it('throws a BadRequestError for every volume unit when the product has no volume info at all', () => {
+    const almonds = product({ name: 'Almonds' });
+    for (const unit of [Unit.CUP, Unit.TABLESPOON, Unit.TEASPOON, Unit.MILLILITRE, Unit.LITRE]) {
+      expect(() => toGrams(1, unit, almonds)).toThrow(BadRequestError);
+    }
   });
 
   it('converts pieces using gramsPerPiece', () => {

@@ -15,6 +15,9 @@ required:
   - sugarPer100g
   - densityGPerMl
   - gramsPerPiece
+  - gramsPerCup
+  - gramsPerTablespoon
+  - gramsPerTeaspoon
   - createdAt
   - updatedAt
 properties:
@@ -50,12 +53,34 @@ properties:
     type:
       - number
       - 'null'
-    description: Grams per millilitre, used to convert volume units to grams. Null means water density is assumed.
+    description: >-
+      Grams per millilitre. The right model for true liquids. Used directly for MILLILITRE/LITRE,
+      and as a fallback for CUP/TABLESPOON/TEASPOON when the corresponding gramsPer* measure is
+      null. Null means no density is recorded.
   gramsPerPiece:
     type:
       - number
       - 'null'
     description: Required to measure this product by the PIECE unit; null means PIECE is unsupported for it.
+  gramsPerCup:
+    type:
+      - number
+      - 'null'
+    description: >-
+      Measured weight of one US cup of this product (USDA SR Legacy style household measure), the
+      preferred way to convert CUP for solids since a single density is wrong for them. Also used
+      as a fallback to derive TABLESPOON, TEASPOON and a density for MILLILITRE/LITRE. Null means
+      no cup measure is recorded.
+  gramsPerTablespoon:
+    type:
+      - number
+      - 'null'
+    description: Measured weight of one US tablespoon of this product. Preferred over deriving TABLESPOON from gramsPerCup or densityGPerMl. Null means no tablespoon measure is recorded.
+  gramsPerTeaspoon:
+    type:
+      - number
+      - 'null'
+    description: Measured weight of one US teaspoon of this product. Preferred over deriving TEASPOON from gramsPerTablespoon, gramsPerCup or densityGPerMl. Null means no teaspoon measure is recorded.
   createdAt:
     type: string
     format: date-time

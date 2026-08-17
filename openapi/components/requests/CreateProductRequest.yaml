@@ -33,9 +33,30 @@ properties:
     type:
       - number
       - 'null'
-    description: Grams per millilitre, used to convert volume units to grams. Omit or send null when unknown; water density is then assumed.
+    description: >-
+      Grams per millilitre, the right model for true liquids. Omit or send null when unknown - a
+      product with none of densityGPerMl/gramsPerCup/gramsPerTablespoon/gramsPerTeaspoon set is
+      rejected with 400 when a volume unit is later used against it, rather than guessing.
   gramsPerPiece:
     type:
       - number
       - 'null'
     description: Required to later measure this product by the PIECE unit. Omit or send null if unsupported.
+  gramsPerCup:
+    type:
+      - number
+      - 'null'
+    description: >-
+      Measured weight of one US cup of this product. The right model for solids, where density is
+      not a valid single number (a cup of whole almonds, sliced almonds and flour all differ).
+      Omit or send null when unknown.
+  gramsPerTablespoon:
+    type:
+      - number
+      - 'null'
+    description: Measured weight of one US tablespoon of this product. Omit or send null when unknown; TABLESPOON then falls back to gramsPerCup / 16, then densityGPerMl.
+  gramsPerTeaspoon:
+    type:
+      - number
+      - 'null'
+    description: Measured weight of one US teaspoon of this product. Omit or send null when unknown; TEASPOON then falls back through gramsPerTablespoon, gramsPerCup, then densityGPerMl.

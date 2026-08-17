@@ -34,5 +34,8 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
     sugarPer100g: input.sugarPer100g,
     densityGPerMl: input.densityGPerMl ?? null,
     gramsPerPiece: input.gramsPerPiece ?? null,
+    gramsPerCup: input.gramsPerCup ?? null,
+    gramsPerTablespoon: input.gramsPerTablespoon ?? null,
+    gramsPerTeaspoon: input.gramsPerTeaspoon ?? null,
   });
 }
