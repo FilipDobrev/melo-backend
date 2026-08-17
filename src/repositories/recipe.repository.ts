@@ -189,13 +189,10 @@ export async function deleteRecipeCategories(recipeId: string, db: Db = prisma):
   await db.recipeCategory.deleteMany({ where: { recipeId } });
 }
 
-/** Row shape needed to purge a user's storage objects after reassignment: the
- * recipe's id (to reassign) and its imageKey (to keep out of the storage
- * prefix delete, since the object stays physically under the original
- * owner's `recipes/<ownerId>/` prefix even after ownership changes). */
+/** Row shape needed to purge a user's storage objects after reassignment:
+ * just the recipe id to reassign. */
 export interface RecipeNeedingReassignment {
   id: string;
-  imageKey: string | null;
 }
 
 /**
@@ -211,15 +208,28 @@ export function findRecipesNeedingReassignment(
 ): Promise<RecipeNeedingReassignment[]> {
   return db.recipe.findMany({
     where: { ownerId: userId, posts: { some: { ownerId: { not: userId } } } },
-    select: { id: true, imageKey: true },
+    select: { id: true },
   });
 }
 
-/** Transfers ownership of the given recipes, e.g. to the purge tombstone account. */
+/**
+ * Transfers ownership of the given recipes to the purge tombstone account
+ * and clears their `imageKey` in the same `updateMany` statement (a single
+ * SQL `UPDATE`, so both changes commit or fail together). The image is
+ * cleared because the underlying object is about to be deleted from storage
+ * along with the rest of the departing user's objects - see
+ * {@link import('../services/accountPurge.service').purgeUser} for why the
+ * picture doesn't survive reassignment while the recipe data does.
+ * `resolveRecipeImageUrl` treats a null `imageKey` as "use the default
+ * preset", so the recipe keeps rendering with a placeholder image.
+ */
 export function reassignRecipes(
   recipeIds: string[],
   newOwnerId: string,
   db: Db = prisma,
 ): Promise<Prisma.BatchPayload> {
-  return db.recipe.updateMany({ where: { id: { in: recipeIds } }, data: { ownerId: newOwnerId } });
+  return db.recipe.updateMany({
+    where: { id: { in: recipeIds } },
+    data: { ownerId: newOwnerId, imageKey: null },
+  });
 }

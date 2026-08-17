@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { app } from './helpers/testApp';
-import { authHeader, createPost, createRecipe, registerUser } from './helpers/factories';
+import { authHeader, createPost, createRecipe, registerUser, uploadRealImage } from './helpers/factories';
 import { prisma } from '../../src/lib/prisma';
 import { env } from '../../src/config/env';
 import { purgeEligibleUsers, purgeUser } from '../../src/services/accountPurge.service';
@@ -40,9 +40,14 @@ describe('account purge', () => {
     const victim = await registerUser(app, { password: PASSWORD });
     const other = await registerUser(app);
 
+    // The shared recipe has its own uploaded photo - it must be deleted from
+    // storage along with the rest of victim's objects, even though the
+    // recipe itself survives reassignment (see accountPurge.service.ts).
+    const recipeImage = await uploadRealImage(app, victim.accessToken, 'recipes');
+
     // `other` cooks victim's recipe and posts about it - a post is not
     // required to be about the poster's own recipe, so this is legitimate.
-    const sharedRecipe = await createRecipe(app, victim.accessToken);
+    const sharedRecipe = await createRecipe(app, victim.accessToken, { imageKey: recipeImage.storageKey });
     const dependentPost = await createPost(app, other.accessToken, sharedRecipe.id);
 
     // A second recipe nobody else's post depends on.
@@ -71,11 +76,23 @@ describe('account purge', () => {
     expect(tombstone.username).toBe('deleted-user');
     expect(tombstone.email).toBe('deleted-accounts@melo.invalid');
 
+    // ...but its photo does not: the object was victim's own personal data
+    // and was deleted along with the rest of their storage objects, so the
+    // row's imageKey is cleared rather than left pointing at a dead key.
+    expect(sharedRow?.imageKey).toBeNull();
+
     // `other`'s post, which depends on that recipe, was never touched.
     const postRow = await prisma.post.findUnique({ where: { id: dependentPost.id } });
     expect(postRow).not.toBeNull();
     const postDetailRes = await request(app).get(`/api/v1/posts/${dependentPost.id}`);
     expect(postDetailRes.status).toBe(200);
+
+    // The recipe's own API response reflects the cleared image with a
+    // preset URL, not a link to the now-deleted object.
+    const recipeDetailRes = await request(app).get(`/api/v1/recipes/${sharedRecipe.id}`);
+    expect(recipeDetailRes.status).toBe(200);
+    expect(recipeDetailRes.body.imageUrl).toContain('/static/recipe-presets/');
+    expect(recipeDetailRes.body.imageUrl).not.toContain(recipeImage.storageKey);
   });
 
   it('re-running the purge, and purging a second user, reuses the same tombstone account', async () => {

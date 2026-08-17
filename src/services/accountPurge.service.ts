@@ -58,18 +58,32 @@ export interface PurgeResult {
 }
 
 /**
- * Purges one user, in the order that keeps other users' data intact:
+ * Purges one user, in the order that keeps other users' data intact while
+ * still erasing the departing user's own content, including their photos:
  *
  * 1. Reassigns any recipe that a DIFFERENT user's post depends on to the
  *    tombstone account, so those posts survive `Post.recipeId` ->
- *    `Recipe` -> `Recipe.ownerId` -> `User`'s cascade chain. Every other
- *    recipe this user owns is left alone here and removed by the user-row
- *    cascade in step 3.
- * 2. Deletes this user's stored objects under `posts/<userId>/`,
- *    `recipes/<userId>/` and `avatars/<userId>/`, excluding the image keys
- *    of recipes just reassigned in step 1 - those objects are still
- *    referenced by a retained recipe, even though it now belongs to the
- *    tombstone account, because the key itself never moves.
+ *    `Recipe` -> `Recipe.ownerId` -> `User`'s cascade chain, and in the same
+ *    `updateMany` statement clears that recipe's `imageKey` to `null`.
+ *    Only the recipe's title, ingredients and nutrition are needed for the
+ *    dependent post to render - its photograph is not, and it is the
+ *    departing user's own personal data (taken in their home, and this
+ *    codebase never strips EXIF, so it may carry GPS coordinates), so an
+ *    erasure request removes it like everything else they own. Clearing
+ *    `imageKey` here, before storage deletion runs, means a crash between
+ *    the two steps can never leave a live recipe pointing at an object
+ *    that's already gone: worst case the object is merely orphaned in the
+ *    bucket, the same recoverable failure mode already tolerated for
+ *    `storageErrors` below. `resolveRecipeImageUrl` treats a null key as
+ *    "show the default preset", so the retained recipe keeps rendering
+ *    fine, just with a placeholder image instead of the deleted one. Every
+ *    other recipe this user owns is left alone here and removed by the
+ *    user-row cascade in step 3.
+ * 2. Deletes every one of this user's stored objects under
+ *    `posts/<userId>/`, `recipes/<userId>/` and `avatars/<userId>/`, with
+ *    no exception for retained recipes - their `imageKey` was already
+ *    nulled in step 1, so nothing in the database still points at the
+ *    objects being removed here.
  * 3. Deletes the user row. The schema's cascades remove everything else:
  *    remaining recipes, posts, comments, reactions, follows, cookbook
  *    saves, collections and refresh tokens.
@@ -96,21 +110,13 @@ export async function purgeUser(userId: string): Promise<PurgeResult> {
       tombstone.id,
     );
   }
-  const keepKeys = new Set(
-    recipesToReassign.map((recipe) => recipe.imageKey).filter((key): key is string => key !== null),
-  );
-
-  const prefixes: Array<{ prefix: string; keep?: ReadonlySet<string> }> = [
-    { prefix: `posts/${userId}/` },
-    { prefix: `recipes/${userId}/`, keep: keepKeys },
-    { prefix: `avatars/${userId}/` },
-  ];
+  const prefixes = [`posts/${userId}/`, `recipes/${userId}/`, `avatars/${userId}/`];
 
   let deletedObjectCount = 0;
   const storageErrors: string[] = [];
-  for (const { prefix, keep } of prefixes) {
+  for (const prefix of prefixes) {
     try {
-      deletedObjectCount += await storageService.deleteByPrefix(prefix, keep);
+      deletedObjectCount += await storageService.deleteByPrefix(prefix);
     } catch (error) {
       storageErrors.push(prefix);
       logger.error(

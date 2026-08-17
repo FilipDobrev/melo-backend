@@ -179,10 +179,7 @@ const DELETE_BATCH_SIZE = 1000;
 
 /**
  * Deletes every object under `prefix` (e.g. `posts/<userId>/`), used by the account purge script
- * to remove a deleted user's stored images. `keep`, when given, is a set of exact keys to skip -
- * needed because a reassigned recipe's image stays physically under the original owner's
- * `recipes/<ownerId>/` prefix even after the recipe itself is transferred to the tombstone
- * account, so that key must not be deleted along with the rest of the prefix.
+ * to remove a deleted user's stored images.
  *
  * Lists in pages (S3 caps ListObjectsV2 at 1000 keys per page) and deletes in batches of up to
  * 1000 keys, which is also DeleteObjects' own limit. Safe to call on a prefix with nothing under
@@ -190,7 +187,7 @@ const DELETE_BATCH_SIZE = 1000;
  * never submitted for deletion.
  * @returns The number of objects actually deleted.
  */
-export async function deleteByPrefix(prefix: string, keep: ReadonlySet<string> = new Set()): Promise<number> {
+export async function deleteByPrefix(prefix: string): Promise<number> {
   let deletedCount = 0;
   let continuationToken: string | undefined;
 
@@ -205,7 +202,7 @@ export async function deleteByPrefix(prefix: string, keep: ReadonlySet<string> =
 
     const keys = (listed.Contents ?? [])
       .map((object) => object.Key)
-      .filter((key): key is string => key !== undefined && !keep.has(key));
+      .filter((key): key is string => key !== undefined);
 
     for (let i = 0; i < keys.length; i += DELETE_BATCH_SIZE) {
       const batch = keys.slice(i, i + DELETE_BATCH_SIZE);
