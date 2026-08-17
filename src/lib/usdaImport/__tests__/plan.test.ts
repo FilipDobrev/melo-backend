@@ -34,12 +34,15 @@ const foodNutrientCsv = [
   // no sugar row for fdc_id 1002 - genuinely absent from SR Legacy for many foods
 ].join('\n');
 
-const measureUnitCsv = ['id,name', '10,cup', '11,tablespoon', '12,teaspoon', '13,piece'].join('\n');
+// measure_unit_id is 9999 ("undetermined") on every SR Legacy food_portion.csv row - verified
+// against the real 2018-04 release - so the file below is unused by the importer but still
+// required to exist, matching the real archive.
+const measureUnitCsv = ['id,name', '1000,cup', '1001,tablespoon', '1002,teaspoon', '9999,undetermined'].join('\n');
 
 const foodPortionCsv = [
   'id,fdc_id,seq_num,amount,measure_unit_id,portion_description,modifier,gram_weight',
-  '1,1001,1,1,10,1 cup,,109',
-  '2,1001,2,1,13,1 fruit,,182',
+  '1,1001,1,1,9999,,cup,109',
+  '2,1001,2,1,9999,,piece,182',
 ].join('\n');
 
 function fixtureFiles(): Record<RequiredFile, Buffer> {

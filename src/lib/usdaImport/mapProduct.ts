@@ -55,5 +55,6 @@ export function mapFoodToProduct(
     gramsPerTablespoon: portions.gramsPerTablespoon,
     gramsPerTeaspoon: portions.gramsPerTeaspoon,
     gramsPerPiece: portions.gramsPerPiece,
+    densityGPerMl: portions.densityGPerMl,
   };
 }

@@ -45,6 +45,7 @@ function printSummary(summary: ImportSummary, dryRun: boolean): void {
     `  gramsPerTablespoon: ${summary.missingPortionCounts.gramsPerTablespoon}`,
     `  gramsPerTeaspoon:   ${summary.missingPortionCounts.gramsPerTeaspoon}`,
     `  gramsPerPiece:      ${summary.missingPortionCounts.gramsPerPiece}`,
+    `  densityGPerMl:      ${summary.missingPortionCounts.densityGPerMl}`,
   ];
 
   if (summary.skippedReasons.length > 0) {

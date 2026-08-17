@@ -9,6 +9,7 @@ export interface PortionMeasures {
   gramsPerTablespoon: number | null;
   gramsPerTeaspoon: number | null;
   gramsPerPiece: number | null;
+  densityGPerMl: number | null;
 }
 
 /** Per-100g nutrient amounts resolved for one food, plus which of the five were missing from the source data. */
@@ -31,6 +32,7 @@ export interface UsdaProductRecord {
   gramsPerTablespoon: number | null;
   gramsPerTeaspoon: number | null;
   gramsPerPiece: number | null;
+  densityGPerMl: number | null;
 }
 
 export interface ImportSummary {
@@ -45,5 +47,6 @@ export interface ImportSummary {
     gramsPerTablespoon: number;
     gramsPerTeaspoon: number;
     gramsPerPiece: number;
+    densityGPerMl: number;
   };
 }
