@@ -183,6 +183,11 @@ Every product response also includes `source` (string, `"manual"` for API-create
 `externalId` (string or null, only set for products seeded from an external nutrition database) -
 stored fields returned on every read, not just the ones accepted on create.
 
+A recipe ingredient's embedded `product` carries the same fields except `createdAt`/`updatedAt` -
+the product row's own timestamps have no use nested inside someone else's recipe, so they're
+dropped there. Standalone product responses (`GET /products`, `GET /products/:productId`) still
+include them.
+
 ### Volume unit conversion and why guessing was removed
 
 Recipe ingredients can be measured by GRAM, KILOGRAM, PIECE, CUP, TABLESPOON, TEASPOON,

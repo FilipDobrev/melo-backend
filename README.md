@@ -33,6 +33,7 @@ Health check: `GET /health` (liveness), `GET /health/ready` (readiness, checks t
 | `npm run test:integration` | Vitest integration tests (real Postgres + supertest, see below) |
 | `npm run prisma:migrate` | Apply a dev migration |
 | `npm run prisma:seed` | Idempotent seed of categories and products |
+| `npm run audit` | `npm audit` at `high` severity threshold - run before releases (see below) |
 
 ## Integration tests
 
@@ -94,3 +95,22 @@ Supporting folders: `dto/` (zod schemas), `middleware/`, `lib/` (errors, logger,
 - Login failures are indistinguishable between "unknown email" and "wrong password".
 - The logger redacts authorization headers, passwords, and tokens.
 - Image uploads go directly to object storage via presigned PUT URLs. The database stores only the object key.
+
+### Dependency audits
+
+There's no CI, so `npm run audit` (`npm audit --audit-level=high`) is a manual
+check - run it after `npm install`/`npm update` and before cutting a release.
+It scans the whole tree (prod + dev deps); to see only what ships in
+production, also run `npm audit --omit=dev`.
+
+Known accepted exception: `@prisma/config` (pulled in only by the `prisma`
+CLI devDependency, used for `migrate`/`generate`/`seed`) pins an exact,
+vulnerable `deepmerge-ts` version (stack-exhaustion DoS,
+[GHSA-ggr8-5vv4-36mx](https://github.com/advisories/GHSA-ggr8-5vv4-36mx)).
+No `prisma` release - including the current 7.x line - has bumped it yet.
+`@prisma/client`, the runtime dependency actually used by the running
+server, does not depend on `@prisma/config` at all, so this doesn't affect
+production traffic. It shows up even under `--omit=dev` because npm's
+lockfile marks `prisma` `devOptional` rather than `dev`, which
+`--omit=dev` doesn't filter out. Re-check `npm view @prisma/config
+dependencies` periodically and drop this note once a fixed release ships.

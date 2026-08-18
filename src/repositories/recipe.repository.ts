@@ -8,6 +8,31 @@ const ownerSummarySelect = {
 } satisfies Prisma.UserSelect;
 
 /**
+ * The product fields a recipe ingredient's response actually needs: enough
+ * to render and edit the ingredient (id for re-submitting productId,
+ * nutrition fields, source/externalId as on the standalone product
+ * response). Deliberately excludes createdAt/updatedAt - a product's own
+ * row timestamps have no use when it's just embedded in someone else's
+ * recipe, so they're dropped rather than shipped for every ingredient.
+ */
+const ingredientProductSelect = {
+  id: true,
+  name: true,
+  source: true,
+  externalId: true,
+  caloriesPer100g: true,
+  proteinPer100g: true,
+  carbsPer100g: true,
+  fatPer100g: true,
+  sugarPer100g: true,
+  densityGPerMl: true,
+  gramsPerPiece: true,
+  gramsPerCup: true,
+  gramsPerTablespoon: true,
+  gramsPerTeaspoon: true,
+} satisfies Prisma.ProductSelect;
+
+/**
  * Full shape used for the single-recipe detail response: owner summary,
  * ingredients joined with their product, assigned categories, and whether
  * the given viewer has saved it. `savedBy` is always filtered by a viewer
@@ -16,7 +41,7 @@ const ownerSummarySelect = {
  */
 export const recipeDetailInclude = {
   owner: { select: ownerSummarySelect },
-  ingredients: { include: { product: true } },
+  ingredients: { include: { product: { select: ingredientProductSelect } } },
   categories: { include: { category: true } },
   savedBy: { select: { id: true } },
 } satisfies Prisma.RecipeInclude;
@@ -100,7 +125,7 @@ export async function findRecipeDetail(
     where: { id, owner: { deletionRequestedAt: null } },
     include: {
       owner: { select: ownerSummarySelect },
-      ingredients: { include: { product: true } },
+      ingredients: { include: { product: { select: ingredientProductSelect } } },
       categories: { include: { category: true } },
       savedBy: { where: { userId: viewerId }, select: { id: true } },
     },
