@@ -173,7 +173,16 @@ describe('OpenAPI description matches the mounted Express routes', () => {
     const expressRoutes = getExpressRoutes(createApp());
     const openApiOperations = getOpenApiOperations(bundleOpenApi());
 
-    expressRouteKeys = new Set(expressRoutes.map(normaliseRoute));
+    expressRouteKeys = new Set(
+      expressRoutes
+        // src/app.ts mounts a couple of /__test/* routes only when
+        // NODE_ENV=test (e.g. for the trust-proxy integration test), which
+        // this suite also sets to import the app at all. They are never
+        // reachable in a real deployment, so they are intentionally never
+        // documented in openapi/.
+        .filter((route) => !route.path.startsWith('/__test/'))
+        .map(normaliseRoute),
+    );
     openApiOperationKeys = new Set(openApiOperations.map(normaliseRoute));
   }, 30_000);
 

@@ -72,6 +72,57 @@ const envSchema = z.object({
   UPLOAD_URL_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
   CORS_ORIGINS: z.string().default('*'),
 
+  /**
+   * Controls Express's `trust proxy` setting, which decides whether
+   * `req.ip` (and therefore every rate limiter, which keys on it) reads the
+   * client's real address from `X-Forwarded-For` or the raw socket address.
+   *
+   * Every real deployment target (Render, Koyeb, Fly, a VPS behind nginx or
+   * Caddy) terminates TLS at a reverse proxy in front of this process, so
+   * the socket address seen by Node is always the proxy's, not the client's.
+   * Left unset, every request appears to come from the same address and
+   * shares one rate-limit bucket - ten failed logins from anyone locks out
+   * everyone.
+   *
+   * Accepts:
+   *   - a non-negative integer hop count: the number of reverse proxies
+   *     between the client and this process. Express then trusts exactly
+   *     that many entries from the right of `X-Forwarded-For` (i.e. it reads
+   *     the address the *nearest trusted* hop reports, not just the
+   *     left-most one, which a client could forge). Use `1` for a single
+   *     PaaS-managed proxy (Render, Koyeb, Fly) or a single nginx/Caddy box.
+   *   - a comma-separated list of trusted IPs/CIDR ranges (e.g. the proxy's
+   *     known LAN address), passed straight through to Express.
+   *
+   * Deliberately does NOT accept `true`/"trust everything": that trusts
+   * `X-Forwarded-For` from any client, letting an attacker forge the header
+   * and pick their own rate-limit bucket - the exact vulnerability this
+   * setting exists to close.
+   *
+   * Defaults to `0` (trust nothing, use the socket address), which is
+   * correct for local development where requests hit the app directly.
+   */
+  TRUST_PROXY: z
+    .string()
+    .default('0')
+    .transform((value, ctx) => {
+      if (/^\d+$/.test(value)) {
+        return Number(value);
+      }
+      const entries = value
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0);
+      if (entries.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'TRUST_PROXY must be a non-negative integer hop count or a comma-separated list of IPs/CIDR ranges',
+        });
+        return z.NEVER;
+      }
+      return entries;
+    }),
+
   S3_BUCKET: z.string().min(1),
   S3_REGION: z.string().min(1),
   S3_ENDPOINT: z.string().url().optional(),
