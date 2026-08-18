@@ -4,6 +4,7 @@ import type { User } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
+import { recordAuditEvent } from '../lib/audit';
 import { prisma } from '../lib/prisma';
 import * as recipeRepository from '../repositories/recipe.repository';
 import * as userRepository from '../repositories/user.repository';
@@ -127,6 +128,25 @@ export async function purgeUser(userId: string): Promise<PurgeResult> {
   }
 
   await userRepository.deleteUser(userId);
+
+  // No originating HTTP request - this runs from the scheduled purge script
+  // (scripts/purge-deleted-users.ts), never from a live request - so there
+  // is no requestId to attach and no authenticated actor; the account owner
+  // requested this days ago via DELETE /users/me (already audited there as
+  // account.deletion.requested), and this event is the system carrying that
+  // request out once the grace period elapsed.
+  recordAuditEvent({
+    action: 'account.purged',
+    actorId: null,
+    resourceType: 'user',
+    resourceId: userId,
+    outcome: 'success',
+    meta: {
+      reassignedRecipeCount: recipesToReassign.length,
+      deletedObjectCount,
+      storageErrorCount: storageErrors.length,
+    },
+  });
 
   return {
     userId,

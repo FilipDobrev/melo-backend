@@ -1,5 +1,6 @@
 import type { CreateCommentInput, ListCommentsQuery } from '../dto/comment.dto';
 import type { Page } from '../lib/pagination';
+import { recordAuditEvent } from '../lib/audit';
 import * as commentService from '../services/comment.service';
 import type { CommentResponse } from '../services/comment.service';
 import type {
@@ -36,6 +37,23 @@ export async function deleteComment(
   req: AuthorizedRequest<void, unknown, PostCommentParams>,
   res: TypedResponse<void>,
 ): Promise<void> {
-  await commentService.deleteComment(req.params.postId, req.params.commentId, req.userId);
+  const { moderatedByPostOwner } = await commentService.deleteComment(
+    req.params.postId,
+    req.params.commentId,
+    req.userId,
+  );
+  // Only moderation - the post owner removing someone else's comment - is
+  // audited here. A user deleting their own comment is ordinary self-service
+  // on their own content, not access to someone else's.
+  if (moderatedByPostOwner) {
+    recordAuditEvent({
+      action: 'comment.deleted_by_post_owner',
+      actorId: req.userId,
+      resourceType: 'comment',
+      resourceId: req.params.commentId,
+      requestId: String(req.id),
+      outcome: 'success',
+    });
+  }
   res.status(204).end();
 }

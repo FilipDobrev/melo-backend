@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../lib/errors';
 import { logger } from '../lib/logger';
+import { recordAuditEvent } from '../lib/audit';
 
 interface ErrorBody {
   error: { code: string; message: string; details?: unknown; requestId?: string };
@@ -31,6 +32,20 @@ export function errorHandler(
 
   const body: ErrorBody = { error: { code: mapped.code, message: mapped.message } };
   if (mapped.details !== undefined) body.error.details = mapped.details;
+
+  // Every 403 means an authenticated caller tried to touch a record they do
+  // not own - exactly the "who tried to access what" question audit logging
+  // exists to answer. Hooked centrally here, rather than at each call site
+  // that throws ForbiddenError, so it can never be forgotten on a new one.
+  if (mapped.status === 403) {
+    recordAuditEvent({
+      action: 'authorization.denied',
+      actorId: req.userId ?? null,
+      requestId: String(req.id),
+      outcome: 'failure',
+      meta: { path: req.path, method: req.method },
+    });
+  }
 
   if (mapped.status >= 500) {
     // 4xx is the caller's own fault - no correlation id needed. 5xx is where

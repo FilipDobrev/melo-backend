@@ -1,4 +1,5 @@
 import { BadRequestError } from '../lib/errors';
+import { recordAuditEvent } from '../lib/audit';
 import * as userService from '../services/user.service';
 import type { MeUser, PublicProfile, PublicUser } from '../services/user.service';
 import type { CreateUploadUrlResult } from '../services/storage.service';
@@ -32,12 +33,28 @@ export async function deleteMe(
   res: TypedResponse<void>,
 ): Promise<void> {
   await userService.deleteMe(req.userId, req.body.password);
+  recordAuditEvent({
+    action: 'account.deletion.requested',
+    actorId: req.userId,
+    resourceType: 'user',
+    resourceId: req.userId,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
   res.status(204).send();
 }
 
 /** Cancels a pending deletion of the caller's own account. Responds 204. */
 export async function restoreMe(req: AuthorizedRequest, res: TypedResponse<void>): Promise<void> {
   await userService.restoreMe(req.userId);
+  recordAuditEvent({
+    action: 'account.deletion.cancelled',
+    actorId: req.userId,
+    resourceType: 'user',
+    resourceId: req.userId,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
   res.status(204).send();
 }
 

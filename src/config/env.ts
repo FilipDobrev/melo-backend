@@ -58,6 +58,17 @@ const envSchema = z.object({
   AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   AUTH_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
   /**
+   * Per-account login lockout, on top of (not instead of) the per-IP limiter
+   * above. AUTH_RATE_LIMIT_MAX throttles one IP hammering any account; this
+   * throttles a distributed attempt (many IPs) against one account, which the
+   * IP limiter cannot see. Counts consecutive failed logins for one account
+   * and locks it out for LOGIN_LOCKOUT_DURATION_MINUTES once the threshold is
+   * crossed; a successful login clears the count. See
+   * src/services/loginLockout.service.ts for the storage decision.
+   */
+  LOGIN_LOCKOUT_THRESHOLD: z.coerce.number().int().positive().default(10),
+  LOGIN_LOCKOUT_DURATION_MINUTES: z.coerce.number().int().positive().default(15),
+  /**
    * Backstop across the whole API - set well above anything a normal
    * client would ever hit, to blunt scripted abuse rather than shape
    * legitimate traffic.

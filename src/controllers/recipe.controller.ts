@@ -1,5 +1,6 @@
 import type { CreateRecipeInput, CreateRecipeUploadUrlInput, ListRecipesQuery, UpdateRecipeInput } from '../dto/recipe.dto';
 import type { CursorPagination, Page } from '../lib/pagination';
+import { recordAuditEvent } from '../lib/audit';
 import * as recipeService from '../services/recipe.service';
 import type { RecipeDetail, RecipeSummary } from '../services/recipe.service';
 import { listRecipeImagePresets, type RecipeImagePresetDto } from '../services/recipeImage';
@@ -36,6 +37,14 @@ export async function createRecipe(
   res: TypedResponse<RecipeDetail>,
 ): Promise<void> {
   const recipe = await recipeService.createRecipe(req.userId, req.body);
+  recordAuditEvent({
+    action: 'recipe.created',
+    actorId: req.userId,
+    resourceType: 'recipe',
+    resourceId: recipe.id,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
   res.status(201).json(recipe);
 }
 
@@ -45,6 +54,14 @@ export async function updateRecipe(
   res: TypedResponse<RecipeDetail>,
 ): Promise<void> {
   const recipe = await recipeService.updateRecipe(req.params.recipeId, req.userId, req.body);
+  recordAuditEvent({
+    action: 'recipe.updated',
+    actorId: req.userId,
+    resourceType: 'recipe',
+    resourceId: recipe.id,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
   res.json(recipe);
 }
 
@@ -54,6 +71,14 @@ export async function deleteRecipe(
   res: TypedResponse<void>,
 ): Promise<void> {
   await recipeService.deleteRecipe(req.params.recipeId, req.userId);
+  recordAuditEvent({
+    action: 'recipe.deleted',
+    actorId: req.userId,
+    resourceType: 'recipe',
+    resourceId: req.params.recipeId,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
   res.status(204).send();
 }
 

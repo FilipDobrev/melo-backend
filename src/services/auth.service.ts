@@ -2,9 +2,11 @@ import bcrypt from 'bcrypt';
 import { env } from '../config/env';
 import { prisma, type Db } from '../lib/prisma';
 import { logger } from '../lib/logger';
+import { recordAuditEvent } from '../lib/audit';
 import { ConflictError, UnauthenticatedError } from '../lib/errors';
 import * as userRepository from '../repositories/user.repository';
 import * as refreshTokenRepository from '../repositories/refreshToken.repository';
+import * as loginLockoutService from './loginLockout.service';
 import { signAccessToken, issueRefreshToken, hashRefreshToken } from './token.service';
 import { toMeUser, type MeUser } from './user.service';
 import type { LoginInput, RegisterInput } from '../dto/auth.dto';
@@ -58,18 +60,61 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
 }
 
 /**
- * @throws {UnauthenticatedError} if the email is unknown or the password does not match. The same
- * error and message are used for both cases so a caller cannot enumerate registered emails.
+ * @param requestId pino-http's request id, threaded through so the emitted audit event joins the
+ * originating HTTP request's log line. Optional because this is also unit-testable in isolation.
+ * @throws {UnauthenticatedError} if the email is unknown, the account is locked out (see
+ * loginLockout.service.ts), or the password does not match. The same error and message are used
+ * for all three cases so a caller cannot enumerate registered emails, or distinguish a wrong
+ * password from a locked account.
  */
-export async function login(input: LoginInput): Promise<AuthResult> {
-  const user = await userRepository.findByEmail(input.email);
+export async function login(input: LoginInput, requestId?: string): Promise<AuthResult> {
   const invalidCredentialsError = new UnauthenticatedError('Invalid email or password');
-  if (!user) throw invalidCredentialsError;
+
+  const user = await userRepository.findByEmail(input.email);
+  if (!user) {
+    recordAuditEvent({ action: 'auth.login.failure', actorId: null, requestId, outcome: 'failure' });
+    throw invalidCredentialsError;
+  }
+
+  // Checked before touching the password at all: a locked account must
+  // respond exactly like a wrong password, including not paying bcrypt's
+  // cost on every hammering attempt once it is already locked.
+  if (loginLockoutService.isLocked(user.id)) {
+    recordAuditEvent({
+      action: 'auth.login.locked_out',
+      actorId: user.id,
+      resourceType: 'user',
+      resourceId: user.id,
+      requestId,
+      outcome: 'failure',
+    });
+    throw invalidCredentialsError;
+  }
 
   const passwordMatches = await bcrypt.compare(input.password, user.passwordHash);
-  if (!passwordMatches) throw invalidCredentialsError;
+  if (!passwordMatches) {
+    const { justLocked } = loginLockoutService.recordFailure(user.id);
+    recordAuditEvent({
+      action: justLocked ? 'auth.login.locked_out' : 'auth.login.failure',
+      actorId: user.id,
+      resourceType: 'user',
+      resourceId: user.id,
+      requestId,
+      outcome: 'failure',
+    });
+    throw invalidCredentialsError;
+  }
 
+  loginLockoutService.recordSuccess(user.id);
   const tokens = await issueTokensFor(user.id);
+  recordAuditEvent({
+    action: 'auth.login.success',
+    actorId: user.id,
+    resourceType: 'user',
+    resourceId: user.id,
+    requestId,
+    outcome: 'success',
+  });
   return { user: toMeUser(user), ...tokens };
 }
 
@@ -80,7 +125,7 @@ export async function login(input: LoginInput): Promise<AuthResult> {
  * also revokes every other active session for the user, forcing both the attacker and the
  * legitimate user to log in again.
  */
-export async function refresh(refreshToken: string): Promise<RefreshResult> {
+export async function refresh(refreshToken: string, requestId?: string): Promise<RefreshResult> {
   const tokenHash = hashRefreshToken(refreshToken);
   const existing = await refreshTokenRepository.findByTokenHash(tokenHash);
 
@@ -92,6 +137,14 @@ export async function refresh(refreshToken: string): Promise<RefreshResult> {
   if (existing.revokedAt) {
     await refreshTokenRepository.revokeAllActiveForUser(existing.userId);
     logger.warn({ userId: existing.userId }, 'refresh token reuse detected; revoked all active sessions');
+    recordAuditEvent({
+      action: 'auth.refresh.reuse_detected',
+      actorId: existing.userId,
+      resourceType: 'user',
+      resourceId: existing.userId,
+      requestId,
+      outcome: 'failure',
+    });
     throw invalidTokenError;
   }
 
@@ -99,10 +152,19 @@ export async function refresh(refreshToken: string): Promise<RefreshResult> {
     throw invalidTokenError;
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     await refreshTokenRepository.revoke(existing.id, tx);
     return issueTokensFor(existing.userId, tx);
   });
+  recordAuditEvent({
+    action: 'auth.refresh.success',
+    actorId: existing.userId,
+    resourceType: 'user',
+    resourceId: existing.userId,
+    requestId,
+    outcome: 'success',
+  });
+  return result;
 }
 
 /**
