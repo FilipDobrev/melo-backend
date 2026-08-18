@@ -4,7 +4,7 @@ import type { RefreshToken, User } from '@prisma/client';
 // Bypasses env.ts's runtime validation, which requires DATABASE_URL, JWT
 // secrets, and S3 config that are not present in the test process.
 vi.mock('../../config/env', () => ({
-  env: { BCRYPT_ROUNDS: 4 },
+  env: { BCRYPT_ROUNDS: 4, LOGIN_LOCKOUT_THRESHOLD: 10, LOGIN_LOCKOUT_DURATION_MINUTES: 15 },
 }));
 
 vi.mock('../../lib/prisma', () => ({
@@ -15,6 +15,24 @@ vi.mock('../../lib/prisma', () => ({
 
 vi.mock('../../repositories/user.repository');
 vi.mock('../../repositories/refreshToken.repository');
+
+// Real recordAuditEvent runs through pino, which is silent at this level of
+// mocking (env.NODE_ENV is undefined here, not 'test') - spied on instead of
+// mocked so individual tests can assert on the exact shape emitted, per the
+// "no token or email in the payload" requirement in loginLockout's spec.
+vi.mock('../../lib/audit', () => ({
+  recordAuditEvent: vi.fn(),
+}));
+
+// The lockout counter is a module-level in-memory Map, so leaving it
+// unmocked would let failures recorded by one test (all sharing 'user-1')
+// leak into the next. Mocked here; lockout mechanics themselves are covered
+// by loginLockout.service.test.ts.
+vi.mock('../loginLockout.service', () => ({
+  isLocked: vi.fn(() => false),
+  recordFailure: vi.fn(() => ({ justLocked: false })),
+  recordSuccess: vi.fn(),
+}));
 
 vi.mock('bcrypt', () => ({
   default: {
@@ -37,6 +55,8 @@ import bcrypt from 'bcrypt';
 import * as authService from '../auth.service';
 import * as userRepository from '../../repositories/user.repository';
 import * as refreshTokenRepository from '../../repositories/refreshToken.repository';
+import * as loginLockoutService from '../loginLockout.service';
+import { recordAuditEvent } from '../../lib/audit';
 
 function makeUser(overrides: Partial<User> = {}): User {
   return {
@@ -67,6 +87,11 @@ function makeRefreshToken(overrides: Partial<RefreshToken> = {}): RefreshToken {
 describe('auth.service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // clearAllMocks resets call history but not an implementation set by a
+    // prior test's mockReturnValue - restored explicitly so tests stay
+    // independent regardless of order.
+    vi.mocked(loginLockoutService.isLocked).mockReturnValue(false);
+    vi.mocked(loginLockoutService.recordFailure).mockReturnValue({ justLocked: false });
   });
 
   describe('register', () => {
@@ -148,6 +173,55 @@ describe('auth.service', () => {
       expect(result.accessToken).toBe('signed-access-token');
       expect(result.refreshToken).toBe('plain-refresh-token');
       expect(result.user.id).toBe('user-1');
+      expect(loginLockoutService.recordSuccess).toHaveBeenCalledWith('user-1');
+    });
+
+    it('rejects a locked-out account with the identical generic error, without checking the password', async () => {
+      vi.mocked(userRepository.findByEmail).mockResolvedValue(makeUser());
+      vi.mocked(loginLockoutService.isLocked).mockReturnValue(true);
+
+      await expect(
+        authService.login({ email: 'alice@example.com', password: 'password1' }),
+      ).rejects.toMatchObject({ status: 401, code: 'UNAUTHENTICATED', message: 'Invalid email or password' });
+      expect(bcrypt.compare).not.toHaveBeenCalled();
+    });
+
+    it('records a failed attempt against the account on a wrong password', async () => {
+      vi.mocked(userRepository.findByEmail).mockResolvedValue(makeUser());
+      vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+
+      await expect(authService.login({ email: 'alice@example.com', password: 'wrong' })).rejects.toThrow();
+
+      expect(loginLockoutService.recordFailure).toHaveBeenCalledWith('user-1');
+    });
+
+    it('emits an audit event on failure that carries no email, password, or token', async () => {
+      vi.mocked(userRepository.findByEmail).mockResolvedValue(makeUser());
+      vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+
+      await expect(
+        authService.login({ email: 'alice@example.com', password: 'wrong-password' }),
+      ).rejects.toThrow();
+
+      expect(recordAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'auth.login.failure', actorId: 'user-1', outcome: 'failure' }),
+      );
+      const payload = JSON.stringify(vi.mocked(recordAuditEvent).mock.calls[0]?.[0]);
+      expect(payload).not.toContain('alice@example.com');
+      expect(payload).not.toContain('wrong-password');
+      expect(payload).not.toContain('stored-hash');
+    });
+
+    it('logs a distinct locked_out action, not a generic failure, on the attempt that crosses the threshold', async () => {
+      vi.mocked(userRepository.findByEmail).mockResolvedValue(makeUser());
+      vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
+      vi.mocked(loginLockoutService.recordFailure).mockReturnValue({ justLocked: true });
+
+      await expect(authService.login({ email: 'alice@example.com', password: 'wrong' })).rejects.toThrow();
+
+      expect(recordAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'auth.login.locked_out', actorId: 'user-1' }),
+      );
     });
   });
 

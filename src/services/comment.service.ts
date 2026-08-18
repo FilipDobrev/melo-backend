@@ -55,19 +55,36 @@ export async function listComments(
   return { items: page.items.map(toCommentResponse), nextCursor: page.nextCursor };
 }
 
+export interface DeleteCommentResult {
+  /**
+   * True when the caller deleted someone else's comment as the post's owner
+   * moderating their own post, rather than deleting their own comment. Lets
+   * the controller audit-log moderation of another user's content without
+   * this service knowing anything about requests or logging.
+   */
+  moderatedByPostOwner: boolean;
+}
+
 /**
  * A comment may be deleted by whoever wrote it, or by the post owner moderating their own post.
  * @throws {NotFoundError} if the comment does not exist under this post.
  * @throws {ForbiddenError} if the caller is neither the comment's author nor the post's owner.
  */
-export async function deleteComment(postId: string, commentId: string, userId: string): Promise<void> {
+export async function deleteComment(
+  postId: string,
+  commentId: string,
+  userId: string,
+): Promise<DeleteCommentResult> {
   const comment = await commentRepository.findById(commentId);
   if (!comment || comment.postId !== postId) throw new NotFoundError('Comment not found');
 
+  let moderatedByPostOwner = false;
   if (comment.authorId !== userId) {
     const post = await postRepository.findOwnerId(postId);
     if (!post || post.ownerId !== userId) throw new ForbiddenError();
+    moderatedByPostOwner = true;
   }
 
   await commentRepository.remove(commentId);
+  return { moderatedByPostOwner };
 }

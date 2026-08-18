@@ -1,6 +1,7 @@
 import type { CreateUploadUrlInput, CreatePostInput, ListPostsQuery, UpdatePostInput } from '../dto/post.dto';
 import type { PutReactionInput } from '../dto/reaction.dto';
 import type { Page } from '../lib/pagination';
+import { recordAuditEvent } from '../lib/audit';
 import * as postService from '../services/post.service';
 import type { PostResponse } from '../services/post.service';
 import * as reactionService from '../services/reaction.service';
@@ -41,6 +42,14 @@ export async function createPost(
     recipeId: req.body.recipeId,
     imageKeys: req.body.imageKeys,
   });
+  recordAuditEvent({
+    action: 'post.created',
+    actorId: req.userId,
+    resourceType: 'post',
+    resourceId: post.id,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
   res.status(201).json(post);
 }
 
@@ -59,6 +68,14 @@ export async function updatePost(
   res: TypedResponse<PostResponse>,
 ): Promise<void> {
   const post = await postService.updatePost(req.params.postId, req.userId, req.body);
+  recordAuditEvent({
+    action: 'post.updated',
+    actorId: req.userId,
+    resourceType: 'post',
+    resourceId: post.id,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
   res.status(200).json(post);
 }
 
@@ -68,6 +85,14 @@ export async function deletePost(
   res: TypedResponse<void>,
 ): Promise<void> {
   await postService.deletePost(req.params.postId, req.userId);
+  recordAuditEvent({
+    action: 'post.deleted',
+    actorId: req.userId,
+    resourceType: 'post',
+    resourceId: req.params.postId,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
   res.status(204).end();
 }
 

@@ -1,5 +1,6 @@
 import * as authService from '../services/auth.service';
 import type { AuthResult, RefreshResult } from '../services/auth.service';
+import { recordAuditEvent } from '../lib/audit';
 import type { LoginInput, LogoutInput, RefreshInput, RegisterInput } from '../dto/auth.dto';
 import type { AuthorizedRequest, TypedResponse, UnauthorizedRequest } from '../types/http';
 
@@ -17,7 +18,7 @@ export async function login(
   req: UnauthorizedRequest<LoginInput>,
   res: TypedResponse<AuthResult>,
 ): Promise<void> {
-  const result = await authService.login(req.body);
+  const result = await authService.login(req.body, String(req.id));
   res.status(200).json(result);
 }
 
@@ -26,7 +27,7 @@ export async function refresh(
   req: UnauthorizedRequest<RefreshInput>,
   res: TypedResponse<RefreshResult>,
 ): Promise<void> {
-  const result = await authService.refresh(req.body.refreshToken);
+  const result = await authService.refresh(req.body.refreshToken, String(req.id));
   res.status(200).json(result);
 }
 
@@ -36,5 +37,13 @@ export async function logout(
   res: TypedResponse<void>,
 ): Promise<void> {
   await authService.logout(req.userId, req.body.refreshToken);
+  recordAuditEvent({
+    action: 'auth.logout',
+    actorId: req.userId,
+    resourceType: 'user',
+    resourceId: req.userId,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
   res.status(204).send();
 }
