@@ -16,4 +16,4 @@ properties:
     type: string
     enum: [GRAM, KILOGRAM, MILLILITRE, LITRE, CUP, TABLESPOON, TEASPOON, PIECE]
   product:
-    $ref: './Product.yaml'
+    $ref: './RecipeIngredientProduct.yaml'

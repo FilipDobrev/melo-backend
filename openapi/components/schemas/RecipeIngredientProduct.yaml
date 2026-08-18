@@ -1,0 +1,81 @@
+type: object
+description: >-
+  A product as embedded in a recipe ingredient. Same fields as Product
+  except createdAt/updatedAt, which are the product row's own timestamps
+  and have no use nested inside someone else's recipe.
+required:
+  - id
+  - name
+  - source
+  - externalId
+  - caloriesPer100g
+  - proteinPer100g
+  - carbsPer100g
+  - fatPer100g
+  - sugarPer100g
+  - densityGPerMl
+  - gramsPerPiece
+  - gramsPerCup
+  - gramsPerTablespoon
+  - gramsPerTeaspoon
+properties:
+  id:
+    type: string
+    format: uuid
+  name:
+    type: string
+  source:
+    type: string
+    description: Where the product data came from. `"manual"` for API-created products.
+  externalId:
+    type:
+      - string
+      - 'null'
+  caloriesPer100g:
+    type: number
+    minimum: 0
+  proteinPer100g:
+    type: number
+    minimum: 0
+  carbsPer100g:
+    type: number
+    minimum: 0
+  fatPer100g:
+    type: number
+    minimum: 0
+  sugarPer100g:
+    type: number
+    minimum: 0
+    description: Defaults to 0 when not recorded.
+  densityGPerMl:
+    type:
+      - number
+      - 'null'
+    description: >-
+      Grams per millilitre. The right model for true liquids. Used directly for MILLILITRE/LITRE,
+      and as a fallback for CUP/TABLESPOON/TEASPOON when the corresponding gramsPer* measure is
+      null. Null means no density is recorded.
+  gramsPerPiece:
+    type:
+      - number
+      - 'null'
+    description: Required to measure this product by the PIECE unit; null means PIECE is unsupported for it.
+  gramsPerCup:
+    type:
+      - number
+      - 'null'
+    description: >-
+      Measured weight of one US cup of this product (USDA SR Legacy style household measure), the
+      preferred way to convert CUP for solids since a single density is wrong for them. Also used
+      as a fallback to derive TABLESPOON, TEASPOON and a density for MILLILITRE/LITRE. Null means
+      no cup measure is recorded.
+  gramsPerTablespoon:
+    type:
+      - number
+      - 'null'
+    description: Measured weight of one US tablespoon of this product. Preferred over deriving TABLESPOON from gramsPerCup or densityGPerMl. Null means no tablespoon measure is recorded.
+  gramsPerTeaspoon:
+    type:
+      - number
+      - 'null'
+    description: Measured weight of one US teaspoon of this product. Preferred over deriving TEASPOON from gramsPerTablespoon, gramsPerCup or densityGPerMl. Null means no teaspoon measure is recorded.

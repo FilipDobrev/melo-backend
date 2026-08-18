@@ -36,9 +36,15 @@ export interface RecipeSummary {
   imageUrl: string;
 }
 
+/** A product as embedded in a recipe ingredient - everything the standalone
+ * product response has except its own createdAt/updatedAt, which have no
+ * use nested inside someone else's recipe. See recipe.repository.ts's
+ * ingredientProductSelect. */
+export type RecipeIngredientProduct = Omit<Product, 'createdAt' | 'updatedAt'>;
+
 export interface RecipeDetail extends RecipeSummary {
   instructions: string;
-  ingredients: Array<{ id: string; quantity: number; unit: Unit; product: Product }>;
+  ingredients: Array<{ id: string; quantity: number; unit: Unit; product: RecipeIngredientProduct }>;
   nutrition: Nutrition;
   isSaved: boolean;
 }
