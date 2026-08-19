@@ -4,13 +4,13 @@ import { cursorPaginationSchema } from '../lib/pagination';
 /** Any subset of the caller's own profile fields; omitted fields are left unchanged. */
 export const updateMeSchema = z.object({
   username: z.string().trim().min(3).max(30).optional(),
-  // Accepts either a storage key (new uploads, see
-  // POST /users/me/avatar/upload-url) or, TRANSITIONALLY, a plain http(s)
-  // URL - the current frontend still writes the latter directly. Delete the
-  // URL form, and this comment, once the frontend is rebuilt to only ever
-  // send keys. Which form was sent, and ownership of a key, can only be
-  // checked once the caller's id is known, so that happens in
-  // user.service.ts's updateMe rather than here.
+  // Must be a storage key obtained from POST /users/me/avatar/upload-url,
+  // under the caller's own avatars/<userId>/ prefix. Ownership of the key,
+  // and that it was actually uploaded, can only be checked once the
+  // caller's id is known, so that happens in user.service.ts's updateMe
+  // rather than here. Older rows may still hold a legacy absolute URL
+  // written before this restriction (see resolveProfileImage), but new
+  // writes can no longer produce that form.
   profileImage: z.string().trim().min(1).max(500).nullable().optional(),
 });
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;

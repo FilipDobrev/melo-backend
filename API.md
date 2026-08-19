@@ -158,19 +158,19 @@ prefixes that failed to clean up.
 
 "optional" above means the response is genuinely personalised for an authenticated caller (`isFollowing`, or a post's own reaction). The four `no` rows accept a bearer token (they sit behind the same `optionalAuth` middleware) but never read it — an authenticated and anonymous caller get an identical response. Don't infer personalisation from the middleware name alone; check whether the controller/service actually uses the caller's id.
 
-`profileImage` in requests accepts a storage key obtained from the upload-url
-endpoint above (must be under the caller's own `avatars/<userId>/` prefix, or
-400) or, TRANSITIONALLY, a plain http(s) URL - the legacy form written
-directly by the current frontend, kept working only until it is rebuilt to
-use the upload flow. In every response (`/users/me`, public profiles, and
-author/owner summaries embedded in posts, recipes, comments and follower
-lists) `profileImage` is always a resolved, fetchable URL, or `null`.
+`profileImage` in requests accepts only a storage key obtained from the
+upload-url endpoint above, and it must be under the caller's own
+`avatars/<userId>/` prefix (400 otherwise). In every response (`/users/me`,
+public profiles, and author/owner summaries embedded in posts, recipes,
+comments and follower lists) `profileImage` is always a resolved, fetchable
+URL, or `null` - responses may still return a legacy absolute URL for older
+accounts whose row was written before this restriction, but writes can no
+longer produce that form.
 
 An avatar key is verified against storage the same way post and recipe image
 keys are: the object must exist, be within the size limit, have an allowed
 content type, and have bytes matching that type. A key that was never uploaded
-is rejected with 400. The legacy URL form is not a storage object and is not
-checked.
+is rejected with 400.
 
 ## Products
 | Method | Path | Auth | Notes |

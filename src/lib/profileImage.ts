@@ -6,10 +6,12 @@ import { publicUrlFor } from '../services/storage.service';
  *   - a raw storage key for an uploaded avatar, always under
  *     `avatars/<ownerId>/` (mirrors posts/<ownerId>/ in storage.service.ts).
  *     Resolved via `publicUrlFor`.
- *   - TRANSITIONAL: a plain http(s) URL, written directly by the current
- *     frontend before avatar uploads existed. Returned unchanged. Delete
- *     this branch, and this comment, once the frontend is rebuilt to only
- *     ever send keys obtained from POST /users/me/avatar/upload-url.
+ *   - LEGACY: a plain http(s) URL. The write path (user.service.ts's
+ *     updateMe) no longer produces this form - it now only accepts a
+ *     storage key, verified as belonging to the caller - but rows written
+ *     before that change still hold a URL, so this branch stays here on the
+ *     read path indefinitely. Returned unchanged. Removing it would break
+ *     the avatar of every account that still has one of these rows.
  */
 const LEGACY_URL_PATTERN = /^https?:\/\//i;
 

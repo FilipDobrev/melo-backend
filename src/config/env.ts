@@ -148,7 +148,29 @@ const envSchema = z.object({
   API_PUBLIC_BASE_URL: z.string().url().optional(),
 });
 
-const parsed = envSchema.safeParse(process.env);
+/**
+ * `CORS_ORIGINS` defaults to `*` for local development, where there is no
+ * meaningful origin to restrict. Shipping that default to production would
+ * be silent - nothing about a wildcard fails loudly on its own, it just
+ * quietly accepts requests from any origin - so production refuses to boot
+ * unless the value has been deliberately set to something narrower. This is
+ * config hygiene, not a response to an active vulnerability: the API
+ * authenticates with a Bearer header, never cookies, so a hostile origin
+ * gains nothing from a permissive CORS policy today. Still, forgetting to
+ * set this in production should fail fast, exactly like a missing secret.
+ */
+const schemaWithProductionChecks = envSchema.superRefine((value, ctx) => {
+  if (value.NODE_ENV === 'production' && value.CORS_ORIGINS === '*') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['CORS_ORIGINS'],
+      message:
+        'CORS_ORIGINS must not be "*" in production; set it to a comma-separated list of allowed origins',
+    });
+  }
+});
+
+const parsed = schemaWithProductionChecks.safeParse(process.env);
 
 if (!parsed.success) {
   // Fail fast: a misconfigured environment must never boot silently -

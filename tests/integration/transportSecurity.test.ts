@@ -58,12 +58,20 @@ describe('JSON content-type discipline', () => {
 /// fresh app has to be built after NODE_ENV is temporarily forced to
 /// 'production'.
 describe('force HTTPS in production', () => {
+  const originalCorsOrigins = process.env.CORS_ORIGINS;
+
   beforeEach(() => {
     vi.resetModules();
+    // env.ts refuses to boot with NODE_ENV=production and CORS_ORIGINS left
+    // at "*" (see cors.test.ts) - give it a concrete value here so this
+    // suite's use of NODE_ENV=production to exercise the HTTPS redirect
+    // doesn't trip that unrelated guard.
+    process.env.CORS_ORIGINS = 'https://app.example.com';
   });
 
   afterAll(() => {
     process.env.NODE_ENV = 'test';
+    process.env.CORS_ORIGINS = originalCorsOrigins;
     vi.resetModules();
   });
 

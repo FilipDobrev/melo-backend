@@ -7,6 +7,7 @@ import { resolveProfileImage } from '../lib/profileImage';
 import * as userRepository from '../repositories/user.repository';
 import * as refreshTokenRepository from '../repositories/refreshToken.repository';
 import type { SearchUsersQuery, UpdateMeInput } from '../dto/user.dto';
+import { isReservedUsername } from './accountPurge.service';
 import * as storageService from './storage.service';
 import type { CreateUploadUrlResult } from './storage.service';
 
@@ -116,14 +117,10 @@ export async function restoreMe(userId: string): Promise<void> {
   await userRepository.clearDeletionRequested(userId);
 }
 
-const LEGACY_PROFILE_IMAGE_URL_PATTERN = /^https?:\/\//i;
-
 /**
  * Rejects a storage key that does not belong to the caller's own avatar upload prefix, so a
  * user cannot point their avatar at another user's uploaded object. Mirrors
  * validateImageKeyOwnership in post.service.ts.
- * TRANSITIONAL: a plain http(s) URL skips this check entirely (see updateMe below) - delete this
- * comment once that form is removed.
  * @throws {BadRequestError} if the key falls outside `avatars/<ownerId>/`.
  */
 function validateAvatarKeyOwnership(storageKey: string, ownerId: string): void {
@@ -133,27 +130,35 @@ function validateAvatarKeyOwnership(storageKey: string, ownerId: string): void {
 }
 
 /**
- * @throws {ConflictError} if the new username is already taken by another user.
- * @throws {BadRequestError} if a non-legacy-URL profileImage fails ownership validation (see
+ * @throws {ConflictError} if the new username is already taken by another user, or is the
+ * reserved tombstone username (see {@link isReservedUsername}).
+ * @throws {BadRequestError} if profileImage fails ownership validation (see
  * {@link validateAvatarKeyOwnership}) or storage verification (`verifyUploadedImage`).
  */
 export async function updateMe(userId: string, input: UpdateMeInput): Promise<MeUser> {
   if (input.username) {
+    // Reserved for the account purge's tombstone user (see
+    // accountPurge.service.ts) - rejected with the same message an ordinary
+    // taken username gets, so this doesn't advertise that the name is special.
+    if (isReservedUsername(input.username)) {
+      throw new ConflictError('Username is already taken');
+    }
     const existing = await userRepository.findByUsername(input.username);
     if (existing && existing.id !== userId) {
       throw new ConflictError('Username is already taken');
     }
   }
 
-  // TRANSITIONAL: the current frontend still sends a plain http(s) URL
-  // directly, so that form is accepted unchecked. Only the storage-key form
-  // is verified as belonging to the caller. Delete this branch, and go back
-  // to always validating, once the frontend only ever sends keys.
-  if (
-    input.profileImage !== undefined &&
-    input.profileImage !== null &&
-    !LEGACY_PROFILE_IMAGE_URL_PATTERN.test(input.profileImage)
-  ) {
+  // Every write now goes through the same checks the storage-key form
+  // already ran: the key must belong to the caller's own avatar prefix, and
+  // the uploaded object must pass storage verification. The frontend now
+  // only ever sends a key from POST /users/me/avatar/upload-url, which is
+  // what made it safe to stop also accepting a bare http(s) URL here -
+  // that legacy form let a caller point their avatar at any host, leaking
+  // every viewer's IP to it and letting the image change after moderation.
+  // Existing rows written before this change still hold a plain URL; those
+  // are left alone and still resolved on read by resolveProfileImage.
+  if (input.profileImage !== undefined && input.profileImage !== null) {
     validateAvatarKeyOwnership(input.profileImage, userId);
     await storageService.verifyUploadedImage(input.profileImage);
   }

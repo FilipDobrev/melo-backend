@@ -27,13 +27,13 @@ patch:
   description: >-
     Accepts any subset of the body; an absent key leaves that field
     unchanged. `username`, when present, must be unique (409 if taken).
-    `profileImage` accepts either a storage key under the caller's own
-    `avatars/{userId}/` prefix (from POST /users/me/avatar/upload-url,
-    verified against storage) or, TRANSITIONALLY, a plain http(s) URL — a
-    deprecated legacy form accepted unchecked, kept working only until the
-    frontend is rebuilt to always use the upload flow. Send `null` to clear
-    the avatar. The response's `profileImage` is always a resolved,
-    fetchable URL or null, regardless of which form was sent.
+    `profileImage` accepts only a storage key under the caller's own
+    `avatars/{userId}/` prefix (from POST /users/me/avatar/upload-url),
+    verified against storage. Send `null` to clear the avatar. The
+    response's `profileImage` is always a resolved, fetchable URL or null;
+    it may still be a legacy absolute URL for an account whose row was
+    written before this restriction, since a write can no longer produce
+    that form.
   tags: [Users]
   security:
     - bearerAuth: []
@@ -52,10 +52,8 @@ patch:
             $ref: '../../components/schemas/MeUser.yaml'
     '400':
       description: >-
-        The storage-key form of profileImage does not belong to the
-        caller's own avatar prefix, was never uploaded, or fails the
-        size/type/magic-number check. Does not apply to the legacy URL
-        form, which is not checked.
+        profileImage does not belong to the caller's own avatar prefix,
+        was never uploaded, or fails the size/type/magic-number check.
       content:
         application/json:
           schema:

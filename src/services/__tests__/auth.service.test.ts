@@ -117,6 +117,18 @@ describe('auth.service', () => {
       expect(userRepository.create).not.toHaveBeenCalled();
     });
 
+    it('rejects the reserved tombstone username without ever querying the database', async () => {
+      // Case and surrounding whitespace must not let it slip past the
+      // reservation - see isReservedUsername in accountPurge.service.ts.
+      await expect(
+        authService.register({ username: ' Deleted-User ', email: 'new@example.com', password: 'password1' }),
+      ).rejects.toMatchObject({ status: 409 });
+
+      expect(userRepository.findByEmail).not.toHaveBeenCalled();
+      expect(userRepository.findByUsername).not.toHaveBeenCalled();
+      expect(userRepository.create).not.toHaveBeenCalled();
+    });
+
     it('hashes the password and returns the user with tokens on success', async () => {
       vi.mocked(userRepository.findByEmail).mockResolvedValue(null);
       vi.mocked(userRepository.findByUsername).mockResolvedValue(null);

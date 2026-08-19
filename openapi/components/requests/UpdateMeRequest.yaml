@@ -13,8 +13,9 @@ properties:
     minLength: 1
     maxLength: 500
     description: >-
-      A storage key under the caller's own `avatars/{userId}/` prefix
-      (obtained from POST /users/me/avatar/upload-url), or, TRANSITIONALLY,
-      a plain http(s) URL — a deprecated legacy form kept working only
-      until the frontend is rebuilt to always use the upload flow. `null`
-      clears the avatar. Omitting the key leaves it unchanged.
+      A storage key under the caller's own `avatars/{userId}/` prefix,
+      obtained from POST /users/me/avatar/upload-url. `null` clears the
+      avatar. Omitting the key leaves it unchanged. Responses may still
+      return a legacy absolute URL for accounts whose profileImage was
+      written before this restriction, but a write can no longer produce
+      that form.

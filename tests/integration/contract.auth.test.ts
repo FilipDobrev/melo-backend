@@ -29,6 +29,14 @@ describe('register / login', () => {
     expect(res.status).toBe(409);
   });
 
+  it('rejects the reserved tombstone username with 409, case- and whitespace-insensitively', async () => {
+    const res = await request(app)
+      .post('/api/v1/auth/register')
+      .send({ username: ' Deleted-User ', email: `reserved${Date.now()}@example.com`, password: 'Password123!' });
+
+    expect(res.status).toBe(409);
+  });
+
   it('rejects the wrong password with 401', async () => {
     const user = await registerUser(app, { password: 'CorrectHorse1!' });
 
