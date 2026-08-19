@@ -4,7 +4,12 @@ import { app } from './helpers/testApp';
 import { authHeader, createPost, createRecipe, registerUser, uploadRealImage } from './helpers/factories';
 import { prisma } from '../../src/lib/prisma';
 import { env } from '../../src/config/env';
-import { purgeEligibleUsers, purgeUser } from '../../src/services/accountPurge.service';
+import {
+  getOrCreateTombstoneUser,
+  purgeEligibleUsers,
+  purgeUser,
+  TOMBSTONE_USERNAME,
+} from '../../src/services/accountPurge.service';
 
 const PASSWORD = 'CorrectHorse1!';
 
@@ -109,5 +114,32 @@ describe('account purge', () => {
 
     const tombstones = await prisma.user.findMany({ where: { username: 'deleted-user' } });
     expect(tombstones).toHaveLength(1);
+  });
+
+  it('surfaces a clear, actionable error instead of a raw P2002 when another row already holds the tombstone username', async () => {
+    // Reproduces the exact scenario reported: some row - a restored backup,
+    // another deployment, or one created before registration/rename started
+    // reserving this name (see accountPurge.service.ts) - already holds
+    // `deleted-user` under a different email. Seeded directly via prisma
+    // rather than through POST /auth/register, since registration now
+    // refuses this username and could never produce this row itself.
+    const squatter = await prisma.user.create({
+      data: {
+        username: TOMBSTONE_USERNAME,
+        email: `not-the-tombstone-${Date.now()}@example.com`,
+        passwordHash: 'not-a-real-hash',
+      },
+    });
+
+    await expect(getOrCreateTombstoneUser()).rejects.toThrow(
+      /already holds the reserved username "deleted-user"/,
+    );
+
+    // The error names the offending account, so an operator reading the
+    // purge log can act on it immediately.
+    await expect(getOrCreateTombstoneUser()).rejects.toThrow(new RegExp(squatter.id));
+
+    // Never a raw, unexplained Prisma error.
+    await expect(getOrCreateTombstoneUser()).rejects.not.toMatchObject({ code: 'P2002' });
   });
 });

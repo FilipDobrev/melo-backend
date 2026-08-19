@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { app } from './helpers/testApp';
+import { prisma } from '../../src/lib/prisma';
 import {
   authHeader,
   createComment,
@@ -79,17 +80,42 @@ describe('PATCH /users/me profileImage', () => {
     expect(res.status).toBe(400);
   });
 
-  it('still accepts a legacy plain http(s) URL', async () => {
+  it('rejects a plain http(s) URL on write with 400', async () => {
     const user = await registerUser(app);
-    const legacyUrl = 'https://example.com/some-avatar.jpg';
+    const externalUrl = 'https://example.com/some-avatar.jpg';
 
     const res = await request(app)
       .patch('/api/v1/users/me')
       .set(...authHeader(user.accessToken))
-      .send({ profileImage: legacyUrl });
+      .send({ profileImage: externalUrl });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('still resolves a legacy URL already stored on the row when reading, without touching it on write', async () => {
+    const user = await registerUser(app);
+    const legacyUrl = 'https://example.com/some-avatar.jpg';
+
+    // Simulates a row written before the write path stopped accepting a
+    // plain URL - the read path (resolveProfileImage) must keep rendering
+    // it unchanged so those accounts don't lose their avatar.
+    await prisma.user.update({ where: { id: user.id }, data: { profileImage: legacyUrl } });
+
+    const res = await request(app).get('/api/v1/users/me').set(...authHeader(user.accessToken));
 
     expect(res.status).toBe(200);
     expect(res.body.profileImage).toBe(legacyUrl);
+  });
+
+  it('rejects the reserved tombstone username, case- and whitespace-insensitively', async () => {
+    const user = await registerUser(app);
+
+    const res = await request(app)
+      .patch('/api/v1/users/me')
+      .set(...authHeader(user.accessToken))
+      .send({ username: ' Deleted-User ' });
+
+    expect(res.status).toBe(409);
   });
 
   it('renders the avatar in a post\'s author summary fetched by a different user', async () => {

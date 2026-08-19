@@ -6,6 +6,7 @@ import { recordAuditEvent } from '../lib/audit';
 import { ConflictError, UnauthenticatedError } from '../lib/errors';
 import * as userRepository from '../repositories/user.repository';
 import * as refreshTokenRepository from '../repositories/refreshToken.repository';
+import { isReservedUsername } from './accountPurge.service';
 import * as loginLockoutService from './loginLockout.service';
 import { signAccessToken, issueRefreshToken, hashRefreshToken } from './token.service';
 import { toMeUser, type MeUser } from './user.service';
@@ -41,6 +42,11 @@ async function issueTokensFor(userId: string, db: Db = prisma): Promise<RefreshR
  * @throws {ConflictError} if the email or username is already taken.
  */
 export async function register(input: RegisterInput): Promise<AuthResult> {
+  // Reserved for the account purge's tombstone user (see
+  // accountPurge.service.ts) - rejected with the same message an ordinary
+  // taken username gets, so this doesn't advertise that the name is special.
+  if (isReservedUsername(input.username)) throw new ConflictError('Username is already taken');
+
   const [existingEmail, existingUsername] = await Promise.all([
     userRepository.findByEmail(input.email),
     userRepository.findByUsername(input.username),

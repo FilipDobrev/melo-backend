@@ -17,14 +17,44 @@ import * as storageService from './storage.service';
  * and the password hash is a random value nobody knows, generated once when
  * the account is first created - so it can never be logged into either.
  */
-const TOMBSTONE_USERNAME = 'deleted-user';
+/**
+ * Exported so the registration and profile-update paths can refuse this
+ * exact username - see {@link isReservedUsername} - which is what keeps a
+ * user from ever squatting on the account this module depends on existing.
+ */
+export const TOMBSTONE_USERNAME = 'deleted-user';
 const TOMBSTONE_EMAIL = 'deleted-accounts@melo.invalid';
+
+/**
+ * True if `username` is the reserved tombstone name, compared the way a
+ * unique-username collision should be judged here even though ordinary
+ * username lookups elsewhere in the app are case-sensitive: trimmed and
+ * case-insensitive, so `Deleted-User` or ` deleted-user ` can't slip past
+ * the reservation by differing only in case or surrounding whitespace.
+ * Registration/rename callers must use this instead of a copied string
+ * literal, so there is exactly one place that knows the reserved name.
+ */
+export function isReservedUsername(username: string): boolean {
+  return username.trim().toLowerCase() === TOMBSTONE_USERNAME;
+}
 
 /**
  * Idempotent: looked up by its fixed email first, and only created if
  * missing. If two purge runs race to create it, the loser's unique
  * constraint violation is treated as "someone else just created it" and the
  * winner's row is looked up and returned instead of failing the purge.
+ *
+ * Registration and profile updates both reject `deleted-user` (see
+ * {@link isReservedUsername}), so a fresh deployment can never end up with
+ * an unrelated account squatting on it. That reservation can't reach back in
+ * time, though: a database that already has a squatter - another
+ * deployment, a restored backup, or a row created before this safeguard
+ * existed - would otherwise make the `create` call below fail with a raw
+ * P2002 on `username`, and the email-based catch handler used to have no
+ * way to explain that. It now falls back to a lookup by username and, if
+ * the row found that way isn't actually the tombstone account (its email
+ * doesn't match), throws an error that names the offending row and what to
+ * do about it, instead of surfacing Prisma's raw error to the purge log.
  */
 export async function getOrCreateTombstoneUser(db = prisma): Promise<User> {
   const existing = await userRepository.findByEmail(TOMBSTONE_EMAIL, db);
@@ -42,6 +72,21 @@ export async function getOrCreateTombstoneUser(db = prisma): Promise<User> {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       const createdByAnotherRun = await userRepository.findByEmail(TOMBSTONE_EMAIL, db);
       if (createdByAnotherRun) return createdByAnotherRun;
+
+      // The email didn't collide, so `username` must have - some existing
+      // row already holds `deleted-user` under a different email. The
+      // reservation at registration/rename time stops this going forward,
+      // so seeing it here means an out-of-band row: fail loudly and name
+      // the exact account and fix, rather than rethrowing Prisma's P2002.
+      const squatter = await userRepository.findByUsername(TOMBSTONE_USERNAME, db);
+      if (squatter && squatter.email !== TOMBSTONE_EMAIL) {
+        throw new Error(
+          `Account purge cannot create the tombstone account: user ${squatter.id} ` +
+            `(email ${squatter.email}) already holds the reserved username ` +
+            `"${TOMBSTONE_USERNAME}" but is not the tombstone account (expected email ` +
+            `${TOMBSTONE_EMAIL}). Rename that user's username or delete the row, then re-run the purge.`,
+        );
+      }
     }
     throw err;
   }
