@@ -11,6 +11,8 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../config/env';
 import { BadRequestError } from '../lib/errors';
+import { stripImageMetadata } from '../lib/imageMetadata';
+import { logger } from '../lib/logger';
 
 /**
  * Only these types can be uploaded as post images; anything else is rejected before we ever
@@ -171,6 +173,55 @@ export async function verifyUploadedImage(storageKey: string): Promise<void> {
       storageKey,
       contentType,
     });
+  }
+
+  await stripMetadataInPlace(storageKey, contentType);
+}
+
+/**
+ * Re-fetches the whole object and overwrites it with an EXIF/IPTC/XMP-stripped copy, so that a
+ * camera's embedded GPS coordinates never survive into a publicly-readable object, regardless of
+ * whether the client re-encoded the image before uploading (the client's re-encode is a courtesy,
+ * not something the server can enforce - a modified client or a raw PUT to the presigned URL
+ * bypasses it entirely).
+ *
+ * Buffering the whole object in memory is fine here: uploads are capped at 10 MB
+ * (MAX_CONTENT_LENGTH_BYTES) by both the presigned URL and the size check above, so this never
+ * holds more than that.
+ *
+ * Never throws: this runs after the image has already passed verification and is about to be
+ * attached to a post/recipe/avatar, so a stripping failure (network error, an S3 write conflict,
+ * a parser bug) must not fail the user's request - losing the upload would be worse than a
+ * metadata field surviving. Failures are logged and swallowed.
+ */
+async function stripMetadataInPlace(storageKey: string, contentType: string): Promise<void> {
+  try {
+    const object = await s3Client.send(new GetObjectCommand({ Bucket: env.S3_BUCKET, Key: storageKey }));
+    const original = Buffer.from((await object.Body?.transformToByteArray()) ?? new Uint8Array(0));
+
+    const result = stripImageMetadata(contentType, original);
+    if (!result) {
+      // The magic-number check already proved the bytes are a genuine instance of
+      // `contentType`, so failing to parse its container here means our parser doesn't yet
+      // handle some real-world variant of the format - not that the upload is invalid. Leaving
+      // the object untouched is the safe default; this is worth a warn since it means a real
+      // image is shipping with whatever metadata it already had.
+      logger.warn({ storageKey, contentType }, 'Could not parse image container to strip metadata');
+      return;
+    }
+
+    if (!result.changed) return; // nothing to strip - avoid a pointless write and version churn
+
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: env.S3_BUCKET,
+        Key: storageKey,
+        Body: result.buffer,
+        ContentType: contentType,
+      }),
+    );
+  } catch (err) {
+    logger.error({ err, storageKey, contentType }, 'Failed to strip image metadata after upload');
   }
 }
 

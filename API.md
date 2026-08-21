@@ -35,6 +35,26 @@ Every limiter's window and ceiling is environment-configurable, see `.env.exampl
 to accommodate many requests from localhost without triggering the limiter. Manual testing of the running app
 exercises the real production limits and confirms the limiter behaves correctly under realistic load.
 
+## Uploaded image metadata
+
+Every image bucket is public-read, so any metadata embedded in an uploaded file
+is effectively published to anyone with the URL - most importantly EXIF GPS
+coordinates a camera embeds by default, which would otherwise leak where a
+photo (e.g. of a home-cooked meal) was actually taken. The frontend re-encodes
+images before upload, which normally drops this, but that is a client-side
+courtesy, not an enforced property: a modified client, or a direct PUT to a
+presigned URL, bypasses it entirely.
+
+As defence in depth, the API strips metadata server-side, in addition to (not
+instead of) the client-side re-encode. This runs as part of attach-time
+verification (see each resource's section below): once an uploaded object
+passes verification, its EXIF/IPTC/XMP-carrying segments (JPEG APP1/APP13
+segments, PNG `eXIf`/`tEXt`/`iTXt`/`zTXt` chunks, WebP `EXIF`/`XMP ` chunks)
+are removed in place, without re-encoding the image. An image with no such
+metadata is left untouched. If stripping fails for any reason, the failure is
+logged and the request still succeeds - the image is already verified and
+attached, and losing the upload would be worse than metadata surviving.
+
 Paginated shape: `{ "items": T[], "nextCursor": string | null }`.
 Paginated query params: `?cursor=<uuid>&limit=<1..50>` (default 20).
 
@@ -170,7 +190,8 @@ longer produce that form.
 An avatar key is verified against storage the same way post and recipe image
 keys are: the object must exist, be within the size limit, have an allowed
 content type, and have bytes matching that type. A key that was never uploaded
-is rejected with 400.
+is rejected with 400. Verification also strips embedded metadata server-side
+(see [Uploaded image metadata](#uploaded-image-metadata)).
 
 ## Products
 | Method | Path | Auth | Notes |
@@ -250,8 +271,10 @@ resolved `imageUrl`; the raw `imageKey` is never returned.
 A non-preset `imageKey` is verified against storage on create and update,
 the same way as post `imageKeys`: the object must exist, be within the size
 limit, have an allowed content type, and have bytes matching that type. A
-key that was never uploaded is rejected with 400. `preset:<slug>` values are
-app assets, not storage objects, and are never checked against storage.
+key that was never uploaded is rejected with 400. Verification also strips
+embedded metadata server-side (see
+[Uploaded image metadata](#uploaded-image-metadata)). `preset:<slug>` values
+are app assets, not storage objects, and are never checked against storage.
 
 ## Collections
 
@@ -289,7 +312,9 @@ the object must actually exist, its size must be within the 10 MB limit, its
 stored content type must be one of the allowed image types, and its first
 bytes must match that type's magic number. A key that was never uploaded (or
 that names bytes that are not really an image) is rejected with 400. This
-check only runs when a key is attached, never on read.
+check only runs when a key is attached, never on read. It also strips
+embedded metadata server-side (see
+[Uploaded image metadata](#uploaded-image-metadata)).
 
 `PATCH /posts/:postId` accepts any subset of `{ caption, recipeId, imageKeys }`.
 An absent `caption` key leaves it untouched; an explicit `caption: null` clears
