@@ -1,0 +1,59 @@
+type: object
+description: A recipe owned by the caller.
+required:
+  - id
+  - title
+  - description
+  - instructions
+  - imageUrl
+  - createdAt
+  - updatedAt
+  - ingredients
+  - categories
+properties:
+  id:
+    type: string
+    format: uuid
+  title:
+    type: string
+  description:
+    type: string
+  instructions:
+    type: string
+  imageUrl:
+    type: string
+    format: uri
+    description: Resolved, fetchable URL. Never a raw storage key.
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time
+  ingredients:
+    type: array
+    items:
+      type: object
+      required: [productId, productName, quantity, unit]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        productName:
+          type: string
+        quantity:
+          type: number
+          exclusiveMinimum: 0
+        unit:
+          type: string
+          enum: [GRAM, KILOGRAM, MILLILITRE, LITRE, CUP, TABLESPOON, TEASPOON, PIECE]
+  categories:
+    type: array
+    items:
+      type: object
+      required: [slug, name]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string

@@ -1,0 +1,18 @@
+type: object
+description: >-
+  A recipe the caller has saved to their cookbook. recipeTitle is the
+  recipe's own (public) title, included so this section is readable without
+  cross-referencing the recipes section for a recipe someone else owns.
+required:
+  - recipeId
+  - recipeTitle
+  - savedAt
+properties:
+  recipeId:
+    type: string
+    format: uuid
+  recipeTitle:
+    type: string
+  savedAt:
+    type: string
+    format: date-time

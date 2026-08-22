@@ -1,0 +1,13 @@
+type: object
+description: >-
+  The other party in a follow relationship - id and username only, never
+  their email or any other field of theirs.
+required:
+  - id
+  - username
+properties:
+  id:
+    type: string
+    format: uuid
+  username:
+    type: string

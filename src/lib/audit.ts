@@ -48,6 +48,7 @@ export type AuditAction =
   | 'account.deletion.requested'
   | 'account.deletion.cancelled'
   | 'account.purged'
+  | 'account.data_exported'
   | 'authorization.denied'
   | 'post.created'
   | 'post.updated'

@@ -34,3 +34,4 @@ process.env.NODE_ENV = 'test';
 process.env.AUTH_RATE_LIMIT_MAX = '500';
 process.env.GENERAL_RATE_LIMIT_MAX = '10000';
 process.env.UPLOAD_URL_RATE_LIMIT_MAX = '5000';
+process.env.EXPORT_RATE_LIMIT_MAX = '5000';

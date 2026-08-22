@@ -54,3 +54,17 @@ export const uploadUrlRateLimiter = rateLimit({
   legacyHeaders: false,
   handler: tooManyRequests,
 });
+
+/**
+ * GET /users/me/export walks every table the caller owns rows in, unpaginated,
+ * in a single request - the most expensive read this API offers and an
+ * obvious lever for hammering the database. A legitimate user exports their
+ * own data rarely, so this is deliberately tighter than every other limiter.
+ */
+export const exportRateLimiter = rateLimit({
+  windowMs: env.EXPORT_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
+  limit: env.EXPORT_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: tooManyRequests,
+});

@@ -1,0 +1,42 @@
+type: object
+description: A post owned by the caller.
+required:
+  - id
+  - recipeId
+  - caption
+  - createdAt
+  - updatedAt
+  - images
+properties:
+  id:
+    type: string
+    format: uuid
+  recipeId:
+    type: string
+    format: uuid
+  caption:
+    type:
+      - string
+      - 'null'
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time
+  images:
+    type: array
+    items:
+      type: object
+      required: [id, url, position]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+          description: Resolved, fetchable URL. Never a raw storage key.
+        position:
+          type: integer
+          minimum: 0

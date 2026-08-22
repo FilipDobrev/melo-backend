@@ -1,0 +1,43 @@
+type: object
+description: A collection owned by the caller, with its recipe entries.
+required:
+  - id
+  - name
+  - createdAt
+  - updatedAt
+  - recipes
+properties:
+  id:
+    type: string
+    format: uuid
+  name:
+    type: string
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time
+  recipes:
+    type: object
+    required: [items, truncated]
+    properties:
+      items:
+        type: array
+        items:
+          type: object
+          required: [recipeId, recipeTitle, addedAt]
+          properties:
+            recipeId:
+              type: string
+              format: uuid
+            recipeTitle:
+              type: string
+            addedAt:
+              type: string
+              format: date-time
+      truncated:
+        type: boolean
+        description: >-
+          True if this collection has more than 5000 recipe entries; items
+          holds only the first 5000.

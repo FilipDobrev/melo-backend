@@ -73,6 +73,8 @@ paths:
     $ref: './paths/users/me-avatar-upload-url.yaml'
   /users/me/restore:
     $ref: './paths/users/me-restore.yaml'
+  /users/me/export:
+    $ref: './paths/users/me-export.yaml'
   /users:
     $ref: './paths/users/index.yaml'
   /users/{userId}:

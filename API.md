@@ -30,6 +30,10 @@ Every limiter's window and ceiling is environment-configurable, see `.env.exampl
 - `POST /posts/images/upload-url`, `POST /recipes/images/upload-url`,
   `POST /users/me/avatar/upload-url`: 10 requests per 5 minutes per IP by default -
   tighter because each call mints write access to object storage.
+- `GET /users/me/export`: 3 requests per 60 minutes per IP by default - the
+  most expensive read in the API (walks every table the caller owns rows in,
+  unpaginated, in one request), and a legitimate user exports their own data
+  rarely.
 
 **Note on testing**: The integration test suite sets its own higher ceilings (see `tests/integration/env.ts`)
 to accommodate many requests from localhost without triggering the limiter. Manual testing of the running app
@@ -61,6 +65,7 @@ other sessions.
 | PATCH | `/users/me` | yes | `{ username?, profileImage? }` |
 | DELETE | `/users/me` | yes | `{ password }` -> 204, requests account deletion (see below) |
 | POST | `/users/me/restore` | yes | no body -> 204, cancels a pending deletion; 409 if not pending |
+| GET | `/users/me/export` | yes | full data export (see below); works for a pending-deletion account too |
 | POST | `/users/me/avatar/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }`, key under `avatars/<userId>/` |
 | GET | `/users/:userId` | optional | public profile + counts + `isFollowing` for the caller if authenticated |
 | GET | `/users?search=` | no | paginated user discovery |
@@ -107,6 +112,38 @@ purge. While `deletionRequestedAt` is set:
 to normal immediately. It only succeeds while still inside the grace period;
 calling it on an account that isn't pending deletion, or whose grace period
 has already elapsed, is a 409.
+
+### Data export (GDPR Article 20)
+
+`GET /users/me/export` returns everything the service holds about the caller
+in one JSON response: `{ format, exportedAt, account, recipes, posts,
+comments, reactions, follows: { following, followers }, cookbookSaves,
+collections }`. Every image field (`recipe.imageUrl`, `post.images[].url`) is
+a resolved, fetchable URL, never a raw storage key or embedded bytes.
+`passwordHash` and refresh token material are never included anywhere in the
+payload - that is credential material, not data about the person. A follow
+entry (`following`/`followers`) exposes only the other party's `id` and
+`username`, never their email or any other field.
+
+A response with `Content-Disposition: attachment;
+filename="melo-data-export-<userId>.json"` so a browser treats it as a
+download, while the body stays plain JSON.
+
+Every list-shaped section is `{ items, truncated }`. Each is capped at 5000
+rows (`EXPORT_ITEM_CAP`); on the rare account that exceeds it, `truncated` is
+`true` and `items` holds the first 5000 rather than silently dropping the
+rest. A collection's own `recipes` sub-list is capped independently the same
+way. Realistically no account is close to this cap - it exists as a backstop
+against a pathological account, not expected behaviour.
+
+Works for a pending-deletion account: a user who requested deletion is
+exactly the user most likely to want their data right now, and nothing here
+depends on the account being active.
+
+Rate limited far tighter than any other endpoint (see Rate limiting above) -
+this is one unpaginated read across every table the caller owns rows in, the
+single most expensive request the API can serve. An access to it is recorded
+via the audit log (`account.data_exported`).
 
 ### Purge
 
