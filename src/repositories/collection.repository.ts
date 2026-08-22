@@ -129,6 +129,7 @@ const savedRecipeSelect = {
   imageKey: true,
   owner: { select: { id: true, username: true, profileImage: true } },
   categories: { select: { category: { select: { slug: true, name: true } } } },
+  servings: true,
 } as const;
 
 /** recipeId is unique within one collection, so it doubles as the cursor. */

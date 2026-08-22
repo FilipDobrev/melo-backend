@@ -16,6 +16,7 @@ function buildRow(overrides: Partial<PostCardRow> = {}): PostCardRow {
     recipe: {
       id: 'recipe-1',
       title: 'Omelette',
+      servings: 1,
       ingredients: [
         {
           quantity: 200,
@@ -78,6 +79,7 @@ describe('toPostResponse', () => {
       recipe: {
         id: 'recipe-1',
         title: 'Omelette',
+        servings: 2,
         ingredients: [
           {
             quantity: 200,
@@ -105,6 +107,7 @@ describe('toPostResponse', () => {
     expect(response.recipe).toEqual({
       id: 'recipe-1',
       title: 'Omelette',
+      servings: 2,
       nutrition: { calories: 300, protein: 26, carbs: 2, fat: 22, sugar: 0.8 },
       isSaved: false,
     });

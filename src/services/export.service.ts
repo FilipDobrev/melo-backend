@@ -68,6 +68,7 @@ export interface ExportRecipe {
   updatedAt: Date;
   ingredients: ExportRecipeIngredient[];
   categories: ExportRecipeCategory[];
+  servings: number;
 }
 
 function toExportRecipe(row: exportRepository.ExportRecipeRow): ExportRecipe {
@@ -79,6 +80,7 @@ function toExportRecipe(row: exportRepository.ExportRecipeRow): ExportRecipe {
     imageUrl: resolveRecipeImageUrl(row.imageKey),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    servings: row.servings,
     ingredients: row.ingredients.map((ingredient) => ({
       productId: ingredient.product.id,
       productName: ingredient.product.name,

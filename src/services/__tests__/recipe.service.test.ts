@@ -40,6 +40,7 @@ function buildRecipeDetail(overrides: Partial<RecipeDetailRow> = {}): RecipeDeta
     description: 'A simple high-protein meal.',
     instructions: 'Grill the chicken. Cook the rice. Combine.',
     imageKey: null,
+    servings: 1,
     createdAt: now,
     updatedAt: now,
     owner: { id: 'owner-1', username: 'chef', profileImage: null },
@@ -123,6 +124,11 @@ describe('toRecipeDetail', () => {
     expect(detail.categories).toEqual([{ slug: 'dinner', name: 'Dinner' }]);
     expect(detail.owner).toEqual({ id: 'owner-1', username: 'chef', profileImage: null });
   });
+
+  it('passes servings through to the response', () => {
+    const detail = toRecipeDetail(buildRecipeDetail({ servings: 3 }));
+    expect(detail.servings).toBe(3);
+  });
 });
 
 describe('toRecipeSummary', () => {
@@ -134,6 +140,7 @@ describe('toRecipeSummary', () => {
       description: 'A simple high-protein meal.',
       instructions: 'Grill the chicken. Cook the rice. Combine.',
       imageKey: null,
+      servings: 4,
       createdAt: now,
       updatedAt: now,
       owner: { id: 'owner-1', username: 'chef', profileImage: null },
@@ -150,6 +157,7 @@ describe('toRecipeSummary', () => {
       owner: { id: 'owner-1', username: 'chef', profileImage: null },
       categories: [{ slug: 'dinner', name: 'Dinner' }],
       imageUrl: 'http://localhost:4000/static/recipe-presets/default.svg',
+      servings: 4,
     });
   });
 });

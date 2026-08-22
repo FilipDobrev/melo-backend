@@ -8,6 +8,7 @@ required:
   - title
   - nutrition
   - isSaved
+  - servings
 properties:
   id:
     type: string
@@ -21,3 +22,10 @@ properties:
     description: >-
       Whether the current viewer has saved this recipe to their own
       cookbook. False for an anonymous viewer.
+  servings:
+    type: integer
+    minimum: 1
+    maximum: 100
+    description: >-
+      Portions the recipe makes. `nutrition` above is the whole-recipe
+      total; divide by this to get per-serving values.

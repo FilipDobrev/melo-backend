@@ -23,6 +23,7 @@ export const POST_CARD_SELECT = {
     select: {
       id: true,
       title: true,
+      servings: true,
       ingredients: {
         select: {
           quantity: true,
