@@ -144,6 +144,7 @@ export interface CreateRecipeFields {
   description: string;
   instructions: string;
   imageKey?: string;
+  servings?: number;
 }
 
 export async function createRecipe(data: CreateRecipeFields, db: Db = prisma): Promise<Recipe> {
@@ -155,6 +156,7 @@ export interface UpdateRecipeFields {
   description?: string;
   instructions?: string;
   imageKey?: string;
+  servings?: number;
 }
 
 /** A missing recipe raises P2025, which the error middleware maps to 404. */

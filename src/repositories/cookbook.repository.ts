@@ -23,6 +23,7 @@ export interface SavedRecipeSummary {
   imageKey: string | null;
   owner: UserSummary;
   categories: CategorySummary[];
+  servings: number;
 }
 
 /** Select shape backing SavedRecipeSummary; kept next to the type so the two stay in sync. */
@@ -34,6 +35,7 @@ const savedRecipeSelect = {
   imageKey: true,
   owner: {select: {id: true, username: true, profileImage: true}},
   categories: {select: {category: {select: {slug: true, name: true}}}},
+  servings: true,
 } as const;
 
 export async function recipeExists(recipeId: string, db: Db = prisma): Promise<boolean> {

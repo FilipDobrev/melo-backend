@@ -34,6 +34,7 @@ export interface RecipeSummary {
   owner: RecipeOwnerSummary;
   categories: RecipeCategorySummary[];
   imageUrl: string;
+  servings: number;
 }
 
 /** A product as embedded in a recipe ingredient - everything the standalone
@@ -101,6 +102,7 @@ export function toRecipeDetail(recipe: RecipeDetailRow): RecipeDetail {
     nutrition,
     isSaved: recipe.savedBy.length > 0,
     imageUrl: resolveRecipeImageUrl(recipe.imageKey),
+    servings: recipe.servings,
   };
 }
 
@@ -118,6 +120,7 @@ export function toRecipeSummary(recipe: RecipeSummaryRow): RecipeSummary {
       name: assignment.category.name,
     })),
     imageUrl: resolveRecipeImageUrl(recipe.imageKey),
+    servings: recipe.servings,
   };
 }
 
@@ -181,6 +184,7 @@ export async function createRecipe(ownerId: string, input: CreateRecipeInput): P
         description: input.description,
         instructions: input.instructions,
         imageKey: input.imageKey,
+        servings: input.servings,
       },
       tx,
     );
@@ -224,9 +228,15 @@ export async function updateRecipe(recipeId: string, viewerId: string, input: Up
       await recipeRepository.createRecipeCategories(recipeId, categoryIds, tx);
     }
 
-    const { title, description, instructions, imageKey } = input;
-    if (title !== undefined || description !== undefined || instructions !== undefined || imageKey !== undefined) {
-      await recipeRepository.updateRecipeFields(recipeId, { title, description, instructions, imageKey }, tx);
+    const { title, description, instructions, imageKey, servings } = input;
+    if (
+      title !== undefined ||
+      description !== undefined ||
+      instructions !== undefined ||
+      imageKey !== undefined ||
+      servings !== undefined
+    ) {
+      await recipeRepository.updateRecipeFields(recipeId, { title, description, instructions, imageKey, servings }, tx);
     }
 
     const detail = await recipeRepository.findRecipeDetail(recipeId, viewerId, tx);

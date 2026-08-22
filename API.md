@@ -263,7 +263,7 @@ these fields, so measuring them by volume correctly fails with 400 rather than r
 ## Recipes
 | Method | Path | Auth | Notes |
 | --- | --- | --- | --- |
-| POST | `/recipes` | yes | `{ title, description, instructions, ingredients: [{ productId, quantity, unit }], categorySlugs: string[], imageKey? }`. Also saves the recipe to the author's own cookbook |
+| POST | `/recipes` | yes | `{ title, description, instructions, ingredients: [{ productId, quantity, unit }], categorySlugs: string[], imageKey?, servings? }`. Also saves the recipe to the author's own cookbook |
 | GET | `/recipes?search=&categorySlugs=a,b&sort=` | optional | paginated. `sort` = `newest` (default), `oldest`, `popular` (most cookbook saves) |
 | GET | `/recipes/:recipeId` | optional | full detail + computed `nutrition` + `isSaved` |
 | PATCH | `/recipes/:recipeId` | yes, owner | any subset of create fields (incl. `imageKey`); ingredients replace wholesale in a transaction |
@@ -283,6 +283,14 @@ a PATCH body leaves the recipe on its current image, defaulting to the
 `default` preset when none was ever set. Recipe responses (`RecipeSummary`,
 `RecipeDetail`, and the cookbook/collection recipe cards) always carry a
 resolved `imageUrl`; the raw `imageKey` is never returned.
+
+Every recipe has `servings`, an integer >= 1 and <= 100, defaulting to 1
+when omitted on create. A PATCH that omits it leaves the current value
+unchanged, same as every other optional update field. Nutrition totals
+(`nutrition` on `RecipeDetail` and the recipe embedded in a post) are
+always for the whole recipe, never per serving - the client divides by
+`servings` itself. `servings` is returned on `RecipeSummary`, `RecipeDetail`,
+the cookbook/collection recipe cards, and the recipe embedded in a post.
 
 A non-preset `imageKey` is verified against storage on create and update,
 the same way as post `imageKeys`: the object must exist, be within the size
@@ -355,6 +363,6 @@ ownership and storage verification as on create.
 | --- | --- | --- | --- |
 | GET | `/feed` | yes | paginated, posts from followed users plus your own, newest first |
 
-Post payload includes: `id, caption, createdAt, author {id, username, profileImage}, images [{id, url, storageKey}], recipe {id, title, nutrition, isSaved}, reactions { total, byEmoji: Record<string, number>, mine: string | null }, commentCount`.
+Post payload includes: `id, caption, createdAt, author {id, username, profileImage}, images [{id, url, storageKey}], recipe {id, title, servings, nutrition, isSaved}, reactions { total, byEmoji: Record<string, number>, mine: string | null }, commentCount`.
 `storageKey` is the raw object key behind `url` (the same value `publicUrlFor` used to build it), returned so a
 `PATCH /posts/:postId` caller can re-send the keys of images it wants to keep.

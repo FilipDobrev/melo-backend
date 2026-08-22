@@ -116,6 +116,11 @@ model Recipe {
   description  String
   instructions String
   imageKey     String?
+  /// Portions the recipe makes. Never null - a recipe that does not say
+  /// otherwise is one portion. Nutrition totals stay whole-recipe; the
+  /// client divides by this to get per-serving values (see recipe.dto.ts's
+  /// servingsSchema for the accepted range).
+  servings     Int      @default(1)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

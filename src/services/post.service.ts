@@ -34,6 +34,7 @@ export interface RecipeSummary {
   title: string;
   nutrition: Nutrition;
   isSaved: boolean;
+  servings: number;
 }
 
 export interface PostResponse {
@@ -66,6 +67,7 @@ export function toPostResponse(
     recipe: {
       id: row.recipe.id,
       title: row.recipe.title,
+      servings: row.recipe.servings,
       nutrition: recipeNutrition(
         row.recipe.ingredients.map((ingredient) => ({
           quantity: ingredient.quantity,

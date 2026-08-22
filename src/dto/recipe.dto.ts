@@ -11,6 +11,17 @@ export type CreateRecipeUploadUrlInput = z.infer<typeof createRecipeUploadUrlSch
 
 const categorySlugSchema = z.string().trim().min(1).max(50);
 
+/**
+ * Portions the recipe makes. Upper bound of 100 is a sanity cap, not a real
+ * limit on batch cooking - it exists so a typo (e.g. an extra zero) can't
+ * silently store something like 999999 and skew a client's per-serving math.
+ */
+const servingsSchema = z
+  .number()
+  .int('servings must be a whole number')
+  .min(1, 'servings must be at least 1')
+  .max(100, 'servings must be at most 100');
+
 /** One recipe ingredient: a product reference plus a quantity in a specific {@link Unit}. */
 export const ingredientInputSchema = z.object({
   productId: z.string().uuid(),
@@ -32,6 +43,7 @@ export const createRecipeSchema = z.object({
   ingredients: z.array(ingredientInputSchema).min(1),
   categorySlugs: z.array(categorySlugSchema).default([]),
   imageKey: imageKeySchema.optional(),
+  servings: servingsSchema.optional(),
 });
 export type CreateRecipeInput = z.infer<typeof createRecipeSchema>;
 
@@ -47,6 +59,7 @@ export const updateRecipeSchema = z.object({
   ingredients: z.array(ingredientInputSchema).min(1).optional(),
   categorySlugs: z.array(categorySlugSchema).optional(),
   imageKey: imageKeySchema.optional(),
+  servings: servingsSchema.optional(),
 });
 export type UpdateRecipeInput = z.infer<typeof updateRecipeSchema>;
 
