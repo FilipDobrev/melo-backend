@@ -1,0 +1,23 @@
+type: object
+description: A comment the caller authored, on any post - their own or someone else's.
+required:
+  - id
+  - postId
+  - content
+  - createdAt
+  - updatedAt
+properties:
+  id:
+    type: string
+    format: uuid
+  postId:
+    type: string
+    format: uuid
+  content:
+    type: string
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time

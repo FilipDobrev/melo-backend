@@ -2,6 +2,8 @@ import { BadRequestError } from '../lib/errors';
 import { recordAuditEvent } from '../lib/audit';
 import * as userService from '../services/user.service';
 import type { MeUser, PublicProfile, PublicUser } from '../services/user.service';
+import * as exportService from '../services/export.service';
+import type { UserDataExport } from '../services/export.service';
 import type { CreateUploadUrlResult } from '../services/storage.service';
 import type { AvatarUploadUrlInput, DeleteMeInput, SearchUsersQuery, UpdateMeInput } from '../dto/user.dto';
 import type { Page } from '../lib/pagination';
@@ -56,6 +58,29 @@ export async function restoreMe(req: AuthorizedRequest, res: TypedResponse<void>
     outcome: 'success',
   });
   res.status(204).send();
+}
+
+/**
+ * Exports everything the service holds about the caller, for GDPR Article 20
+ * data portability. Available to a pending-deletion account too - see
+ * export.service.ts.
+ */
+export async function exportMe(
+  req: AuthorizedRequest,
+  res: TypedResponse<UserDataExport>,
+): Promise<void> {
+  const data = await exportService.getUserDataExport(req.userId);
+  recordAuditEvent({
+    action: 'account.data_exported',
+    actorId: req.userId,
+    resourceType: 'user',
+    resourceId: req.userId,
+    requestId: String(req.id),
+    outcome: 'success',
+  });
+  res.status(200);
+  res.setHeader('Content-Disposition', `attachment; filename="melo-data-export-${req.userId}.json"`);
+  res.json(data);
 }
 
 /** Gets another user's public profile. */

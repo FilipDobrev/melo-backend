@@ -1,0 +1,149 @@
+type: object
+description: >-
+  Everything the service holds about the caller, for GDPR Article 20 data
+  portability. Every list-shaped section is `{ items, truncated }`:
+  `truncated` is true only when the account has more than 5000 rows in that
+  section, in which case `items` holds the first 5000 rather than silently
+  dropping the rest - see API.md's "Data export" section. Never includes
+  passwordHash or refresh token material anywhere in the payload.
+required:
+  - format
+  - exportedAt
+  - account
+  - recipes
+  - posts
+  - comments
+  - reactions
+  - follows
+  - cookbookSaves
+  - collections
+properties:
+  format:
+    type: string
+    description: >-
+      Format version string. Bump on any breaking change to this shape, so a
+      consumer that saved an old export can detect drift.
+    example: melo.user-data-export.v1
+  exportedAt:
+    type: string
+    format: date-time
+    description: When this export was generated.
+  account:
+    $ref: './ExportAccount.yaml'
+  recipes:
+    type: object
+    description: Recipes owned by the caller.
+    required: [items, truncated]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './ExportRecipe.yaml'
+      truncated:
+        type: boolean
+        description: >-
+          True if the account has more than 5000 recipes; items holds only
+          the first 5000.
+  posts:
+    type: object
+    description: Posts owned by the caller.
+    required: [items, truncated]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './ExportPost.yaml'
+      truncated:
+        type: boolean
+        description: >-
+          True if the account has more than 5000 posts; items holds only the
+          first 5000.
+  comments:
+    type: object
+    description: Comments the caller authored, on any post.
+    required: [items, truncated]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './ExportComment.yaml'
+      truncated:
+        type: boolean
+        description: >-
+          True if the account has more than 5000 comments; items holds only
+          the first 5000.
+  reactions:
+    type: object
+    description: Reactions the caller left, on any post.
+    required: [items, truncated]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './ExportReaction.yaml'
+      truncated:
+        type: boolean
+        description: >-
+          True if the account has more than 5000 reactions; items holds only
+          the first 5000.
+  follows:
+    type: object
+    description: The caller's social graph.
+    required: [following, followers]
+    properties:
+      following:
+        type: object
+        description: Users the caller follows.
+        required: [items, truncated]
+        properties:
+          items:
+            type: array
+            items:
+              $ref: './ExportFollowUser.yaml'
+          truncated:
+            type: boolean
+            description: >-
+              True if the caller follows more than 5000 users; items holds
+              only the first 5000.
+      followers:
+        type: object
+        description: Users who follow the caller.
+        required: [items, truncated]
+        properties:
+          items:
+            type: array
+            items:
+              $ref: './ExportFollowUser.yaml'
+          truncated:
+            type: boolean
+            description: >-
+              True if the caller has more than 5000 followers; items holds
+              only the first 5000.
+  cookbookSaves:
+    type: object
+    description: Recipes the caller has saved to their cookbook.
+    required: [items, truncated]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './ExportCookbookSave.yaml'
+      truncated:
+        type: boolean
+        description: >-
+          True if the account has more than 5000 cookbook saves; items holds
+          only the first 5000.
+  collections:
+    type: object
+    description: The caller's collections, each with its recipe entries.
+    required: [items, truncated]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: './ExportCollection.yaml'
+      truncated:
+        type: boolean
+        description: >-
+          True if the account has more than 5000 collections; items holds
+          only the first 5000.

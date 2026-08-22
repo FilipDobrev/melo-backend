@@ -1,0 +1,41 @@
+get:
+  operationId: exportMe
+  summary: Export own data
+  description: >-
+    Returns everything the service holds about the caller in one response,
+    for GDPR Article 20 data portability: the account itself, recipes,
+    posts, comments, reactions, follows, cookbook saves and collections.
+    Image fields (recipe imageUrl, post image urls) are always resolved,
+    fetchable URLs, never raw storage keys or embedded bytes. Never includes
+    passwordHash or refresh token material anywhere in the payload. A follow
+    entry exposes only the other party's id and username, never their email
+    or any other field. Works the same for a pending-deletion account.
+    Rate limited far tighter than any other endpoint (3 requests per 60
+    minutes per IP by default) - this is the single most expensive read the
+    API can serve. Access is recorded in the audit log.
+  tags: [Users]
+  security:
+    - bearerAuth: []
+  responses:
+    '200':
+      description: >-
+        Everything the service holds about the caller. Content-Disposition
+        suggests a filename for a browser download; the body is still plain
+        JSON.
+      headers:
+        Content-Disposition:
+          schema:
+            type: string
+          description: 'attachment; filename="melo-data-export-<userId>.json"'
+      content:
+        application/json:
+          schema:
+            $ref: '../../components/schemas/UserDataExport.yaml'
+    '401':
+      $ref: '../../components/responses/Unauthorized.yaml'
+    '404':
+      $ref: '../../components/responses/NotFound.yaml'
+    '429':
+      $ref: '../../components/responses/TooManyRequests.yaml'
+    '500':
+      $ref: '../../components/responses/InternalError.yaml'

@@ -1,0 +1,32 @@
+type: object
+description: The account itself. Never includes passwordHash.
+required:
+  - id
+  - username
+  - email
+  - createdAt
+  - updatedAt
+  - deletionRequestedAt
+properties:
+  id:
+    type: string
+    format: uuid
+  username:
+    type: string
+  email:
+    type: string
+    format: email
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time
+  deletionRequestedAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: >-
+      Null for an active account; set when account deletion was requested
+      (DELETE /users/me). This endpoint works the same either way.

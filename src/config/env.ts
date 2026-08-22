@@ -81,6 +81,14 @@ const envSchema = z.object({
    */
   UPLOAD_URL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   UPLOAD_URL_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
+  /**
+   * GET /users/me/export is by far the most expensive endpoint in the API -
+   * it walks every table a user owns rows in, unpaginated, in one request.
+   * A legitimate user exports their own data rarely, so this is set far
+   * tighter than even the upload-url limiter.
+   */
+  EXPORT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(3),
+  EXPORT_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(60),
   CORS_ORIGINS: z.string().default('*'),
 
   /**

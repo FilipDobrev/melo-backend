@@ -1,0 +1,23 @@
+type: object
+description: A reaction the caller left, on any post.
+required:
+  - id
+  - postId
+  - emoji
+  - createdAt
+  - updatedAt
+properties:
+  id:
+    type: string
+    format: uuid
+  postId:
+    type: string
+    format: uuid
+  emoji:
+    type: string
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time

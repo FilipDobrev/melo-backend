@@ -3,7 +3,7 @@ import type { ParamsDictionary } from 'express-serve-static-core';
 import { asyncHandler, authed } from '../middleware/asyncHandler';
 import { optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { uploadUrlRateLimiter } from '../middleware/rateLimit';
+import { exportRateLimiter, uploadUrlRateLimiter } from '../middleware/rateLimit';
 import * as userController from '../controllers/user.controller';
 import {
   avatarUploadUrlSchema,
@@ -34,6 +34,7 @@ userRouter.get('/me', ...authed(userController.getMe));
 userRouter.patch('/me', validate({ body: updateMeSchema }), ...authed(userController.updateMe));
 userRouter.delete('/me', validate({ body: deleteMeSchema }), ...authed(userController.deleteMe));
 userRouter.post('/me/restore', ...authed(userController.restoreMe));
+userRouter.get('/me/export', exportRateLimiter, ...authed(userController.exportMe));
 
 // Literal path, so it must be registered before `/:userId`, or express
 // would swallow it as a userId lookup instead. Mirrors the images/upload-url
