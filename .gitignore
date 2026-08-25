@@ -6,3 +6,4 @@ dist/
 *.log
 openapi/bundled.yaml
 openapi/docs.html
+SECURITY-NOTES.md
