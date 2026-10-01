@@ -36,6 +36,10 @@ export function asyncHandler<
  * Wraps a handler for a guarded route, returning `requireAuth` bundled
  * together with the handler: `router.post('/x', ...authed(controller.create))`.
  *
+ * Any `afterAuth` middleware runs between `requireAuth` and the handler, for things that need
+ * `req.userId`, such as a per-user rate limiter:
+ * `...authed(controller.create, uploadUrlRateLimiter)`.
+ *
  * Bundling the two means the `AuthorizedRequest` type and the middleware that
  * actually satisfies it cannot drift apart. A handler typed as
  * `AuthorizedHandler` only compiles when passed through `authed()`, so
@@ -49,7 +53,10 @@ export function authed<
   TQuery = unknown,
   TParams extends ParamsDictionary = ParamsDictionary,
   TResBody = unknown,
->(handler: AuthorizedHandler<TBody, TQuery, TParams, TResBody>): [RequestHandler, RequestHandler] {
+>(
+  handler: AuthorizedHandler<TBody, TQuery, TParams, TResBody>,
+  ...afterAuth: RequestHandler[]
+): RequestHandler[] {
   const wrapped: RequestHandler = (req, res, next) => {
     // requireAuth ran immediately before this and rejects when userId is
     // absent, so the cast to a userId-bearing request holds.
@@ -57,5 +64,5 @@ export function authed<
     const typedRes = res as unknown as Parameters<typeof handler>[1];
     handler(typedReq, typedRes, next).catch(next);
   };
-  return [requireAuth, wrapped];
+  return [requireAuth, ...afterAuth, wrapped];
 }

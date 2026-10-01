@@ -143,6 +143,7 @@ export function listByOwner(
 export interface PostImageWithPostRow {
   id: string;
   postId: string;
+  storageKey: string;
   post: { ownerId: string; _count: { images: number } };
 }
 
@@ -159,9 +160,16 @@ export function findImageWithPost(
     select: {
       id: true,
       postId: true,
+      storageKey: true,
       post: { select: { ownerId: true, _count: { select: { images: true } } } },
     },
   });
+}
+
+/** Storage keys of every image currently attached to the post. */
+export async function findImageKeys(postId: string, db: Db = prisma): Promise<string[]> {
+  const images = await db.postImage.findMany({ where: { postId }, select: { storageKey: true } });
+  return images.map((image) => image.storageKey);
 }
 
 /** A missing image raises P2025, which the error middleware maps to 404. */

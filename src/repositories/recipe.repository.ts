@@ -134,8 +134,11 @@ export async function findRecipeDetail(
 
 /** Used to authorize recipe mutations: caller compares the returned
  * `ownerId` against the requester before allowing update/delete. */
-export async function findRecipeOwner(id: string, db: Db = prisma): Promise<Pick<Recipe, 'id' | 'ownerId'> | null> {
-  return db.recipe.findUnique({ where: { id }, select: { id: true, ownerId: true } });
+export async function findRecipeOwner(
+  id: string,
+  db: Db = prisma,
+): Promise<Pick<Recipe, 'id' | 'ownerId' | 'imageKey'> | null> {
+  return db.recipe.findUnique({ where: { id }, select: { id: true, ownerId: true, imageKey: true } });
 }
 
 export interface CreateRecipeFields {

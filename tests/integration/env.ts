@@ -28,10 +28,12 @@ process.env.NODE_ENV = 'test';
 /// mechanics (window tracking, per-IP isolation). A future developer adding a
 /// new integration test should confirm it does not accidentally trigger the
 /// production values; if it does, the test has a real problem or the limit is
-/// unreasonably tight. The production defaults (10 uploads/5min, 300
+/// unreasonably tight. The production defaults (30 uploads/15min, 300
 /// general/min, 10 auth/15min) are exercised by manual testing of the real app
 /// against real load, not by the integration suite.
 process.env.AUTH_RATE_LIMIT_MAX = '500';
 process.env.GENERAL_RATE_LIMIT_MAX = '10000';
 process.env.UPLOAD_URL_RATE_LIMIT_MAX = '5000';
+process.env.UPLOAD_URL_DAILY_LIMIT_MAX = '5000';
+process.env.IMAGE_ATTACH_RATE_LIMIT_MAX = '5000';
 process.env.EXPORT_RATE_LIMIT_MAX = '5000';

@@ -8,7 +8,7 @@ import type { PostCardRow } from '../repositories/post.repository';
 import * as cookbookRepository from '../repositories/cookbook.repository';
 import * as reactionRepository from '../repositories/reaction.repository';
 import { EMPTY_REACTION_SUMMARY, type ReactionSummary } from '../repositories/reaction.repository';
-import { publicUrlFor, verifyUploadedImage } from './storage.service';
+import { deleteObjectsInBackground, promoteUpload, publicUrlFor } from './storage.service';
 import { recipeNutrition, type Nutrition } from './nutrition';
 
 export interface AuthorSummary {
@@ -90,37 +90,58 @@ export interface CreatePostInput {
 }
 
 /**
- * Rejects any key that is not under the caller's own upload prefix, so a user cannot attach an
- * image someone else uploaded to their own post.
- * @throws {BadRequestError} if any key falls outside `posts/<ownerId>/`.
+ * Promotes every upload key to its final `posts/` key concurrently (up to 10 images per post, so
+ * this avoids paying the storage round trips one key at a time). If any key fails, the copies
+ * that did succeed are deleted again so they do not leak, and the first failure is rethrown.
+ * @returns The final keys, in the same order as `uploadKeys`.
+ * @throws {BadRequestError} see `promoteUpload`.
  */
-export function validateImageKeyOwnership(imageKeys: string[], ownerId: string): void {
-  const invalidKey = imageKeys.find((key) => !key.startsWith(`posts/${ownerId}/`));
-  if (invalidKey) {
-    throw new BadRequestError('Image keys must belong to the caller');
+async function promoteAllToPosts(uploadKeys: string[], ownerId: string): Promise<string[]> {
+  const results = await Promise.allSettled(uploadKeys.map((key) => promoteUpload(key, ownerId, 'posts')));
+
+  const promotedKeys: string[] = [];
+  let firstFailure: unknown;
+  let hasFailure = false;
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      promotedKeys.push(result.value);
+    } else if (!hasFailure) {
+      hasFailure = true;
+      firstFailure = result.reason;
+    }
   }
+
+  if (hasFailure) {
+    deleteObjectsInBackground(promotedKeys, { reason: 'post image promotion failed', ownerId });
+    throw firstFailure;
+  }
+  return promotedKeys;
 }
 
 /**
- * @throws {BadRequestError} see {@link validateImageKeyOwnership}, and via `verifyUploadedImage`
- * if any image key was never actually uploaded, has an invalid size, or fails the content-type check.
+ * @throws {BadRequestError} via `promoteUpload` if any image key is not the caller's own upload,
+ * was never actually uploaded, or fails the size, type or dimension checks.
  * @throws {NotFoundError} if the recipe does not exist.
  */
 export async function createPost(input: CreatePostInput): Promise<PostResponse> {
-  validateImageKeyOwnership(input.imageKeys, input.ownerId);
-  // Up to 10 images per post (see createPostSchema), so verify them
-  // concurrently rather than paying HeadObject+GetObject latency per key.
-  await Promise.all(input.imageKeys.map((key) => verifyUploadedImage(key)));
-
+  // Checked before promoting so a bad recipe id does not leave copies behind in posts/.
   const recipeFound = await postRepository.recipeExists(input.recipeId);
   if (!recipeFound) throw new NotFoundError('Recipe not found');
 
-  const row = await postRepository.createPost({
-    ownerId: input.ownerId,
-    caption: input.caption,
-    recipeId: input.recipeId,
-    images: input.imageKeys.map((storageKey, position) => ({ storageKey, position })),
-  });
+  const imageKeys = await promoteAllToPosts(input.imageKeys, input.ownerId);
+
+  let row: PostCardRow;
+  try {
+    row = await postRepository.createPost({
+      ownerId: input.ownerId,
+      caption: input.caption,
+      recipeId: input.recipeId,
+      images: imageKeys.map((storageKey, position) => ({ storageKey, position })),
+    });
+  } catch (err) {
+    deleteObjectsInBackground(imageKeys, { reason: 'post creation failed', ownerId: input.ownerId });
+    throw err;
+  }
 
   // The owner may have saved this recipe (to their own cookbook) before
   // posting it, so this is resolved via the same bulk lookup rather than
@@ -156,9 +177,12 @@ export interface UpdatePostInput {
 }
 
 /**
+ * Keys already attached to the post are kept as-is; any other key must be one of the caller's own
+ * fresh uploads and is promoted. Keys dropped from the set are deleted from storage once the
+ * database change has committed.
  * @throws {NotFoundError} if the post, or a replacement recipe, does not exist.
  * @throws {ForbiddenError} if the caller does not own the post.
- * @throws {BadRequestError} see {@link validateImageKeyOwnership} and `verifyUploadedImage`.
+ * @throws {BadRequestError} via `promoteUpload` for a new key that is not the caller's valid upload.
  */
 export async function updatePost(postId: string, viewerId: string, input: UpdatePostInput): Promise<PostResponse> {
   const existing = await postRepository.findOwnerId(postId);
@@ -170,32 +194,49 @@ export async function updatePost(postId: string, viewerId: string, input: Update
     if (!recipeFound) throw new NotFoundError('Recipe not found');
   }
 
+  let currentKeys: string[] = [];
+  let finalKeys: string[] | undefined;
+  let promotedKeys: string[] = [];
   if (input.imageKeys !== undefined) {
-    validateImageKeyOwnership(input.imageKeys, viewerId);
-    // Every key is re-verified against storage, including ones already
-    // attached to this post - those really do exist as objects in storage,
-    // so they pass naturally. No exemption is made for "existing" keys.
-    await Promise.all(input.imageKeys.map((key) => verifyUploadedImage(key)));
+    currentKeys = await postRepository.findImageKeys(postId);
+    const currentKeySet = new Set(currentKeys);
+    const newUploadKeys = input.imageKeys.filter((key) => !currentKeySet.has(key));
+    promotedKeys = await promoteAllToPosts(newUploadKeys, viewerId);
+    const promotedByUploadKey = new Map(newUploadKeys.map((key, index) => [key, promotedKeys[index]]));
+    finalKeys = input.imageKeys.map((key) => promotedByUploadKey.get(key) ?? key);
   }
 
-  await prisma.$transaction(async (tx) => {
-    if (input.imageKeys) {
-      // Wholesale replace, the same way updateRecipe replaces ingredients:
-      // delete every PostImage row and recreate from imageKeys in order.
-      // This reissues each image's id, which is fine because the client
-      // refetches the post after an edit. Position comes from array order.
-      await postRepository.deletePostImages(postId, tx);
-      await postRepository.createPostImages(
-        postId,
-        input.imageKeys.map((storageKey, position) => ({ storageKey, position })),
-        tx,
-      );
-    }
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (finalKeys) {
+        // Wholesale replace, the same way updateRecipe replaces ingredients:
+        // delete every PostImage row and recreate from the keys in order.
+        // This reissues each image's id, which is fine because the client
+        // refetches the post after an edit. Position comes from array order.
+        await postRepository.deletePostImages(postId, tx);
+        await postRepository.createPostImages(
+          postId,
+          finalKeys.map((storageKey, position) => ({ storageKey, position })),
+          tx,
+        );
+      }
 
-    if (input.caption !== undefined || input.recipeId !== undefined) {
-      await postRepository.updatePostFields(postId, { caption: input.caption, recipeId: input.recipeId }, tx);
-    }
-  });
+      if (input.caption !== undefined || input.recipeId !== undefined) {
+        await postRepository.updatePostFields(postId, { caption: input.caption, recipeId: input.recipeId }, tx);
+      }
+    });
+  } catch (err) {
+    deleteObjectsInBackground(promotedKeys, { reason: 'post update failed', postId });
+    throw err;
+  }
+
+  if (finalKeys) {
+    const keptKeys = new Set(finalKeys);
+    deleteObjectsInBackground(
+      currentKeys.filter((key) => !keptKeys.has(key)),
+      { reason: 'post images replaced', postId },
+    );
+  }
 
   return getPostDetail(postId, viewerId);
 }
@@ -209,7 +250,10 @@ export async function deletePost(postId: string, userId: string): Promise<void> 
   if (!post) throw new NotFoundError('Post not found');
   if (post.ownerId !== userId) throw new ForbiddenError();
 
+  // Read before the delete: the image rows cascade away with the post.
+  const imageKeys = await postRepository.findImageKeys(postId);
   await postRepository.deletePost(postId);
+  deleteObjectsInBackground(imageKeys, { reason: 'post deleted', postId });
 }
 
 /**
@@ -226,6 +270,7 @@ export async function deletePostImage(postId: string, imageId: string, userId: s
   }
 
   await postRepository.deleteImage(imageId);
+  deleteObjectsInBackground([image.storageKey], { reason: 'post image deleted', postId, imageId });
 }
 
 /**

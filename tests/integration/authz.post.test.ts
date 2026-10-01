@@ -2,6 +2,7 @@ import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { app } from './helpers/testApp';
 import {
+  attachedKeyFor,
   authHeader,
   createPost,
   createRecipe,
@@ -185,7 +186,7 @@ describe('PATCH /posts/:postId', () => {
     expect(res.status).toBe(200);
     expect(res.body.images.map((image: { storageKey: string }) => image.storageKey)).toEqual([
       existingKey,
-      newUpload.storageKey,
+      attachedKeyFor(newUpload.storageKey, 'posts'),
     ]);
   });
 

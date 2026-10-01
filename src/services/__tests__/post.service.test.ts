@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Unit } from '@prisma/client';
-import { BadRequestError } from '../../lib/errors';
 import { EMPTY_REACTION_SUMMARY, type ReactionSummary } from '../../repositories/reaction.repository';
 import type { PostCardRow } from '../../repositories/post.repository';
-import { toPostResponse, validateImageKeyOwnership } from '../post.service';
+import { toPostResponse } from '../post.service';
 
 function buildRow(overrides: Partial<PostCardRow> = {}): PostCardRow {
   return {
@@ -41,26 +40,6 @@ function buildRow(overrides: Partial<PostCardRow> = {}): PostCardRow {
     ...overrides,
   };
 }
-
-describe('validateImageKeyOwnership', () => {
-  it('accepts keys under the caller prefix', () => {
-    expect(() =>
-      validateImageKeyOwnership(['posts/owner-1/a.jpg', 'posts/owner-1/b.png'], 'owner-1'),
-    ).not.toThrow();
-  });
-
-  it('rejects a key that belongs to a different user', () => {
-    expect(() => validateImageKeyOwnership(['posts/someone-else/a.jpg'], 'owner-1')).toThrow(
-      BadRequestError,
-    );
-  });
-
-  it('rejects when only one of several keys is foreign', () => {
-    expect(() =>
-      validateImageKeyOwnership(['posts/owner-1/a.jpg', 'posts/owner-2/b.jpg'], 'owner-1'),
-    ).toThrow(BadRequestError);
-  });
-});
 
 describe('toPostResponse', () => {
   it('maps author, images and comment count', () => {

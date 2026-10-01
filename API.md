@@ -28,8 +28,12 @@ Every limiter's window and ceiling is environment-configurable, see `.env.exampl
 - Whole API (`/api/v1/**`): 300 requests/minute per IP by default.
 - `/auth/register`, `/auth/login`: 10 attempts per 15 minutes per IP by default.
 - `POST /posts/images/upload-url`, `POST /recipes/images/upload-url`,
-  `POST /users/me/avatar/upload-url`: 10 requests per 5 minutes per IP by default -
-  tighter because each call mints write access to object storage.
+  `POST /users/me/avatar/upload-url`: 10 per 5 minutes and 100 per 24 hours, per user (shared
+  across the three routes) by default - tighter because each call mints write
+  access to object storage. Keyed by user id, not IP.
+- `POST /posts`, `PATCH /posts/:postId`, `POST /recipes`, `PATCH /recipes/:recipeId`,
+  `PATCH /users/me`: 60 requests per 15 minutes per user by default, since each
+  image attach costs several storage operations.
 - `GET /users/me/export`: 3 requests per 60 minutes per IP by default - the
   most expensive read in the API (walks every table the caller owns rows in,
   unpaginated, in one request), and a legitimate user exports their own data
@@ -66,7 +70,7 @@ other sessions.
 | DELETE | `/users/me` | yes | `{ password }` -> 204, requests account deletion (see below) |
 | POST | `/users/me/restore` | yes | no body -> 204, cancels a pending deletion; 409 if not pending |
 | GET | `/users/me/export` | yes | full data export (see below); works for a pending-deletion account too |
-| POST | `/users/me/avatar/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }`, key under `avatars/<userId>/` |
+| POST | `/users/me/avatar/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }`, key under `uploads/<userId>/` (staging; promoted to `avatars/<userId>/` on attach) |
 | GET | `/users/:userId` | optional | public profile + counts + `isFollowing` for the caller if authenticated |
 | GET | `/users?search=` | no | paginated user discovery |
 | POST | `/users/:userId/follow` | yes | 204, 409 on duplicate, 400 on self |
@@ -196,8 +200,8 @@ prefixes that failed to clean up.
 "optional" above means the response is genuinely personalised for an authenticated caller (`isFollowing`, or a post's own reaction). The four `no` rows accept a bearer token (they sit behind the same `optionalAuth` middleware) but never read it — an authenticated and anonymous caller get an identical response. Don't infer personalisation from the middleware name alone; check whether the controller/service actually uses the caller's id.
 
 `profileImage` in requests accepts only a storage key obtained from the
-upload-url endpoint above, and it must be under the caller's own
-`avatars/<userId>/` prefix (400 otherwise). In every response (`/users/me`,
+upload-url endpoint above, which must be the caller's own upload (400
+otherwise). It is verified and copied to `avatars/<userId>/` on attach. In every response (`/users/me`,
 public profiles, and author/owner summaries embedded in posts, recipes,
 comments and follower lists) `profileImage` is always a resolved, fetchable
 URL, or `null` - responses may still return a legacy absolute URL for older
@@ -271,13 +275,13 @@ these fields, so measuring them by volume correctly fails with 400 rather than r
 | POST | `/recipes/:recipeId/save` | yes | save to cookbook, 409 on duplicate |
 | DELETE | `/recipes/:recipeId/save` | yes | 204. Also removes the recipe from every one of the caller's collections, in the same transaction - re-saving afterwards does not restore those memberships |
 | GET | `/users/me/cookbook?categorySlugs=` | yes | paginated saved recipes |
-| POST | `/recipes/images/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }` presigned PUT, key under `recipes/<userId>/`. Same contract as `/posts/images/upload-url` |
+| POST | `/recipes/images/upload-url` | yes | `{ contentType, contentLength }` -> `{ uploadUrl, storageKey }` presigned PUT, key under `uploads/<userId>/`. Same contract as `/posts/images/upload-url` |
 | GET | `/recipes/image-presets` | no | `[{ slug, label, url }]`, the built-in image choices |
 
 Every recipe has a picture. `imageKey` (create/update body) accepts either a
 known preset in the form `preset:<slug>` (see `/recipes/image-presets` for
 the slug list) or a storage key returned by `/recipes/images/upload-url`,
-which must be under the caller's own `recipes/<userId>/` prefix - anything
+which must be the caller's own upload (or the recipe's current key) - anything
 else is rejected with 400. Omitting `imageKey` (create) or leaving it out of
 a PATCH body leaves the recipe on its current image, defaulting to the
 `default` preset when none was ever set. Recipe responses (`RecipeSummary`,
@@ -329,12 +333,17 @@ cookbook, since a collection can never reference a recipe that isn't saved.
 must send exactly those bytes and that content type, or storage rejects it with
 a 403 that the API never sees. Measure the file, do not estimate.
 
-Every key in `imageKeys` is verified against storage when the post is created:
-the object must actually exist, its size must be within the 10 MB limit, its
-stored content type must be one of the allowed image types, and its first
-bytes must match that type's magic number. A key that was never uploaded (or
-that names bytes that are not really an image) is rejected with 400. This
-check only runs when a key is attached, never on read.
+Only `image/jpeg` is accepted, up to 2 MB and 2048 px on the long edge. Every
+new key in `imageKeys` is verified against storage when it is attached: the
+object must exist under the caller's own `uploads/<userId>/` prefix, its size
+and stored content type must be within the limits, and its JPEG header must
+declare dimensions within the limit. A key that was never uploaded (or that
+names bytes that are not a valid JPEG) is rejected with 400. Verified objects
+are copied to `posts/<userId>/` and the staging copy is removed, so attached
+bytes cannot be changed by re-using the presigned URL. On PATCH, keys already
+attached to the post are kept as-is; keys dropped from the set are deleted from
+storage. Keys must be unique. This check only runs when a key is attached,
+never on read.
 
 `PATCH /posts/:postId` accepts any subset of `{ caption, recipeId, imageKeys }`.
 An absent `caption` key leaves it untouched; an explicit `caption: null` clears

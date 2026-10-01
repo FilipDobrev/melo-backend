@@ -8,8 +8,8 @@ import { publicUrlFor } from './storage.service';
  *   - `preset:<slug>`  - one of the built-in images below. Resolved to a URL under this API's
  *     own `/static/recipe-presets` route (see app.ts), because presets are app assets, not user
  *     content in S3.
- *   - a raw storage key for a user-uploaded image, always under `recipes/<ownerId>/` (mirrors
- *     posts/<ownerId>/ in storage.service.ts). Resolved via `publicUrlFor`, same as post images.
+ *   - a raw storage key for a user-uploaded image, always `recipes/<ownerId>/<uuid>.jpg` (see
+ *     promoteUpload in storage.service.ts). Resolved via `publicUrlFor`, same as post images.
  *
  * `null` means "no image chosen" and resolves to the default preset. This is the only place
  * that convention is encoded.
@@ -84,21 +84,15 @@ export function isRecipeImagePreset(imageKey: string): boolean {
 }
 
 /**
- * Rejects any caller-supplied imageKey that is not a known preset or a key under the caller's
- * own recipe upload prefix, so a user can never point their recipe at another user's uploaded
- * object. Mirrors validateImageKeyOwnership in post.service.ts.
- * @throws {BadRequestError} if the key names an unknown preset slug, or is a storage key outside
- * `recipes/<ownerId>/`.
+ * Rejects a caller-supplied imageKey that names an unknown preset. Any other value is treated as
+ * an upload key: its ownership and contents are enforced by `promoteUpload` (or, on update, by
+ * matching the recipe's current key), so no prefix check is done here.
+ * @throws {BadRequestError} if the key names an unknown preset slug.
  */
-export function validateRecipeImageKey(imageKey: string, ownerId: string): void {
-  if (imageKey.startsWith(PRESET_PREFIX)) {
-    const slug = imageKey.slice(PRESET_PREFIX.length);
-    if (!presetsBySlug.has(slug)) {
-      throw new BadRequestError(`Unknown image preset "${slug}"`);
-    }
-    return;
-  }
-  if (!imageKey.startsWith(`recipes/${ownerId}/`)) {
-    throw new BadRequestError('Image key must be a known preset or belong to the caller');
+export function validateRecipeImageKey(imageKey: string): void {
+  if (!imageKey.startsWith(PRESET_PREFIX)) return;
+  const slug = imageKey.slice(PRESET_PREFIX.length);
+  if (!presetsBySlug.has(slug)) {
+    throw new BadRequestError(`Unknown image preset "${slug}"`);
   }
 }

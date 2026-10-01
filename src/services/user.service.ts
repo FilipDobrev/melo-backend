@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import type { User } from '@prisma/client';
 import { env } from '../config/env';
-import { BadRequestError, ConflictError, NotFoundError, UnauthenticatedError } from '../lib/errors';
+import { ConflictError, NotFoundError, UnauthenticatedError } from '../lib/errors';
 import { toPage, type Page } from '../lib/pagination';
 import { resolveProfileImage } from '../lib/profileImage';
 import * as userRepository from '../repositories/user.repository';
@@ -118,22 +118,11 @@ export async function restoreMe(userId: string): Promise<void> {
 }
 
 /**
- * Rejects a storage key that does not belong to the caller's own avatar upload prefix, so a
- * user cannot point their avatar at another user's uploaded object. Mirrors
- * validateImageKeyOwnership in post.service.ts.
- * @throws {BadRequestError} if the key falls outside `avatars/<ownerId>/`.
- */
-function validateAvatarKeyOwnership(storageKey: string, ownerId: string): void {
-  if (!storageKey.startsWith(`avatars/${ownerId}/`)) {
-    throw new BadRequestError('Avatar image key must belong to the caller');
-  }
-}
-
-/**
  * @throws {ConflictError} if the new username is already taken by another user, or is the
  * reserved tombstone username (see {@link isReservedUsername}).
- * @throws {BadRequestError} if profileImage fails ownership validation (see
- * {@link validateAvatarKeyOwnership}) or storage verification (`verifyUploadedImage`).
+ * @throws {NotFoundError} if the user does not exist.
+ * @throws {BadRequestError} if profileImage is not the caller's own valid upload (see
+ * `promoteUpload`).
  */
 export async function updateMe(userId: string, input: UpdateMeInput): Promise<MeUser> {
   if (input.username) {
@@ -149,24 +138,47 @@ export async function updateMe(userId: string, input: UpdateMeInput): Promise<Me
     }
   }
 
-  // Every write now goes through the same checks the storage-key form
-  // already ran: the key must belong to the caller's own avatar prefix, and
-  // the uploaded object must pass storage verification. The frontend now
-  // only ever sends a key from POST /users/me/avatar/upload-url, which is
-  // what made it safe to stop also accepting a bare http(s) URL here -
+  // The frontend only ever sends a key from POST /users/me/avatar/upload-url,
+  // which is what made it safe to stop accepting a bare http(s) URL here -
   // that legacy form let a caller point their avatar at any host, leaking
   // every viewer's IP to it and letting the image change after moderation.
   // Existing rows written before this change still hold a plain URL; those
   // are left alone and still resolved on read by resolveProfileImage.
-  if (input.profileImage !== undefined && input.profileImage !== null) {
-    validateAvatarKeyOwnership(input.profileImage, userId);
-    await storageService.verifyUploadedImage(input.profileImage);
+  let previousImage: string | null = null;
+  let profileImage = input.profileImage;
+  let promotedKey: string | undefined;
+  if (profileImage !== undefined) {
+    const current = await userRepository.findById(userId);
+    if (!current) throw new NotFoundError('User not found');
+    previousImage = current.profileImage;
+
+    if (profileImage !== null && profileImage !== previousImage) {
+      promotedKey = await storageService.promoteUpload(profileImage, userId, 'avatars');
+      profileImage = promotedKey;
+    }
   }
 
-  const updated = await userRepository.update(userId, {
-    ...(input.username !== undefined ? { username: input.username } : {}),
-    ...(input.profileImage !== undefined ? { profileImage: input.profileImage } : {}),
-  });
+  let updated: User;
+  try {
+    updated = await userRepository.update(userId, {
+      ...(input.username !== undefined ? { username: input.username } : {}),
+      ...(profileImage !== undefined ? { profileImage } : {}),
+    });
+  } catch (err) {
+    if (promotedKey) {
+      storageService.deleteObjectsInBackground([promotedKey], { reason: 'avatar update failed', userId });
+    }
+    throw err;
+  }
+
+  // The old avatar is now unreferenced. Legacy http(s) URLs are not storage objects.
+  if (
+    previousImage !== null &&
+    previousImage !== profileImage &&
+    storageService.isOwnedKey(previousImage, 'avatars', userId)
+  ) {
+    storageService.deleteObjectsInBackground([previousImage], { reason: 'avatar replaced', userId });
+  }
   return toMeUser(updated);
 }
 
@@ -197,7 +209,7 @@ export function createAvatarUploadUrl(
   contentType: string,
   contentLength: number,
 ): Promise<CreateUploadUrlResult> {
-  return storageService.createUploadUrl({ userId, contentType, contentLength, folder: 'avatars' });
+  return storageService.createUploadUrl({ userId, contentType, contentLength });
 }
 
 export async function searchUsers(query: SearchUsersQuery): Promise<Page<PublicUser>> {

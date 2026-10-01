@@ -3,7 +3,7 @@ import type { ParamsDictionary } from 'express-serve-static-core';
 import { validate } from '../middleware/validate';
 import { optionalAuth } from '../middleware/auth';
 import { asyncHandler, authed } from '../middleware/asyncHandler';
-import { uploadUrlRateLimiter } from '../middleware/rateLimit';
+import { imageAttachRateLimiter, uploadUrlDailyLimiter, uploadUrlRateLimiter } from '../middleware/rateLimit';
 import * as postController from '../controllers/post.controller';
 import {
   createUploadUrlSchema,
@@ -27,15 +27,14 @@ export const postRouter = Router();
 
 postRouter.post<ParamsDictionary, unknown, CreateUploadUrlInput>(
   '/images/upload-url',
-  uploadUrlRateLimiter,
   validate({ body: createUploadUrlSchema }),
-  ...authed(postController.createUploadUrl),
+  ...authed(postController.createUploadUrl, uploadUrlRateLimiter, uploadUrlDailyLimiter),
 );
 
 postRouter.post<ParamsDictionary, unknown, CreatePostInput>(
   '/',
   validate({ body: createPostSchema }),
-  ...authed(postController.createPost),
+  ...authed(postController.createPost, imageAttachRateLimiter),
 );
 
 postRouter.get<PostIdParams>(
@@ -48,7 +47,7 @@ postRouter.get<PostIdParams>(
 postRouter.patch<PostIdParams, unknown, UpdatePostInput>(
   '/:postId',
   validate({ params: postIdParamsSchema, body: updatePostSchema }),
-  ...authed(postController.updatePost),
+  ...authed(postController.updatePost, imageAttachRateLimiter),
 );
 
 postRouter.delete<PostIdParams>(

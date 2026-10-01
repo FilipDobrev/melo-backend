@@ -157,22 +157,51 @@ export async function getRecipeDetail(recipeId: string, viewerId: string | undef
 }
 
 /**
+ * Resolves a requested imageKey to the value to store: presets and an unchanged current key pass
+ * through, anything else must be a fresh upload and is promoted to its final `recipes/` key.
+ * @returns The key to store, and the newly promoted key (if any) so a failed write can clean it up.
+ * @throws {BadRequestError} if the key names an unknown preset, or is not the caller's valid upload.
+ */
+async function resolveImageKey(
+  requestedKey: string,
+  ownerId: string,
+  currentKey: string | null,
+): Promise<{ imageKey: string; promotedKey: string | undefined }> {
+  validateRecipeImageKey(requestedKey);
+  if (isRecipeImagePreset(requestedKey) || requestedKey === currentKey) {
+    return { imageKey: requestedKey, promotedKey: undefined };
+  }
+  const promotedKey = await storageService.promoteUpload(requestedKey, ownerId, 'recipes');
+  return { imageKey: promotedKey, promotedKey };
+}
+
+/**
  * Verifies every referenced productId/categorySlug exists, then inserts the recipe, its
  * ingredients, and its category assignments together. The author's own cookbook save is created
  * in the same transaction, so a newly created recipe always shows up in its author's cookbook -
  * the author can still unsave (and re-save) it afterwards like anyone else.
- * @throws {BadRequestError} if the image key is invalid (see {@link validateRecipeImageKey}), if
- * a non-preset image key was never actually uploaded or fails verification, or if any
+ * @throws {BadRequestError} if the image key is an unknown preset (see {@link validateRecipeImageKey}),
+ * is not the caller's own upload, or fails verification (see `promoteUpload`), or if any
  * categorySlug or productId does not exist.
  */
 export async function createRecipe(ownerId: string, input: CreateRecipeInput): Promise<RecipeDetail> {
-  if (input.imageKey !== undefined) {
-    validateRecipeImageKey(input.imageKey, ownerId);
-    if (!isRecipeImagePreset(input.imageKey)) {
-      await storageService.verifyUploadedImage(input.imageKey);
-    }
-  }
+  const resolvedImage =
+    input.imageKey !== undefined ? await resolveImageKey(input.imageKey, ownerId, null) : undefined;
 
+  try {
+    return await insertRecipe(ownerId, input, resolvedImage?.imageKey);
+  } catch (err) {
+    if (resolvedImage?.promotedKey) {
+      storageService.deleteObjectsInBackground([resolvedImage.promotedKey], {
+        reason: 'recipe creation failed',
+        ownerId,
+      });
+    }
+    throw err;
+  }
+}
+
+function insertRecipe(ownerId: string, input: CreateRecipeInput, imageKey: string | undefined): Promise<RecipeDetail> {
   return prisma.$transaction(async (tx) => {
     const categoryIds = await resolveCategoryIds(input.categorySlugs, tx);
     await assertProductsExist(input.ingredients, tx);
@@ -183,7 +212,7 @@ export async function createRecipe(ownerId: string, input: CreateRecipeInput): P
         title: input.title,
         description: input.description,
         instructions: input.instructions,
-        imageKey: input.imageKey,
+        imageKey,
         servings: input.servings,
       },
       tx,
@@ -201,20 +230,48 @@ export async function createRecipe(ownerId: string, input: CreateRecipeInput): P
 /**
  * @throws {NotFoundError} if the recipe does not exist.
  * @throws {ForbiddenError} if the caller does not own the recipe.
- * @throws {BadRequestError} see {@link createRecipe}.
+ * @throws {BadRequestError} see {@link createRecipe}. A requested key equal to the recipe's current
+ * one is kept without touching storage.
  */
 export async function updateRecipe(recipeId: string, viewerId: string, input: UpdateRecipeInput): Promise<RecipeDetail> {
   const existing = await recipeRepository.findRecipeOwner(recipeId);
   if (!existing) throw new NotFoundError('Recipe not found');
   if (existing.ownerId !== viewerId) throw new ForbiddenError();
 
-  if (input.imageKey !== undefined) {
-    validateRecipeImageKey(input.imageKey, viewerId);
-    if (!isRecipeImagePreset(input.imageKey)) {
-      await storageService.verifyUploadedImage(input.imageKey);
+  const resolvedImage =
+    input.imageKey !== undefined ? await resolveImageKey(input.imageKey, viewerId, existing.imageKey) : undefined;
+
+  let detail: RecipeDetail;
+  try {
+    detail = await applyRecipeUpdate(recipeId, viewerId, input, resolvedImage?.imageKey);
+  } catch (err) {
+    if (resolvedImage?.promotedKey) {
+      storageService.deleteObjectsInBackground([resolvedImage.promotedKey], {
+        reason: 'recipe update failed',
+        recipeId,
+      });
     }
+    throw err;
   }
 
+  // The previous upload is now unreferenced. Presets and legacy values are not storage objects.
+  if (
+    resolvedImage &&
+    existing.imageKey !== null &&
+    existing.imageKey !== resolvedImage.imageKey &&
+    storageService.isOwnedKey(existing.imageKey, 'recipes', viewerId)
+  ) {
+    storageService.deleteObjectsInBackground([existing.imageKey], { reason: 'recipe image replaced', recipeId });
+  }
+  return detail;
+}
+
+function applyRecipeUpdate(
+  recipeId: string,
+  viewerId: string,
+  input: UpdateRecipeInput,
+  imageKey: string | undefined,
+): Promise<RecipeDetail> {
   return prisma.$transaction(async (tx) => {
     if (input.ingredients) {
       await assertProductsExist(input.ingredients, tx);
@@ -228,7 +285,7 @@ export async function updateRecipe(recipeId: string, viewerId: string, input: Up
       await recipeRepository.createRecipeCategories(recipeId, categoryIds, tx);
     }
 
-    const { title, description, instructions, imageKey, servings } = input;
+    const { title, description, instructions, servings } = input;
     if (
       title !== undefined ||
       description !== undefined ||
@@ -254,6 +311,9 @@ export async function deleteRecipe(recipeId: string, viewerId: string): Promise<
   if (!existing) throw new NotFoundError('Recipe not found');
   if (existing.ownerId !== viewerId) throw new ForbiddenError();
   await recipeRepository.deleteRecipe(recipeId);
+  if (existing.imageKey !== null && storageService.isOwnedKey(existing.imageKey, 'recipes', viewerId)) {
+    storageService.deleteObjectsInBackground([existing.imageKey], { reason: 'recipe deleted', recipeId });
+  }
 }
 
 export async function createRecipeImageUploadUrl(
@@ -261,7 +321,7 @@ export async function createRecipeImageUploadUrl(
   contentType: string,
   contentLength: number,
 ): Promise<CreateUploadUrlResult> {
-  return storageService.createUploadUrl({ userId, contentType, contentLength, folder: 'recipes' });
+  return storageService.createUploadUrl({ userId, contentType, contentLength });
 }
 
 async function resolveCategoryIds(slugs: string[], db: Db): Promise<string[]> {

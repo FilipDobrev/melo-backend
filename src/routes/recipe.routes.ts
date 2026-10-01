@@ -13,7 +13,7 @@ import { userIdParamsSchema } from '../dto/user.dto';
 import { cursorPaginationSchema } from '../lib/pagination';
 import { asyncHandler, authed } from '../middleware/asyncHandler';
 import { optionalAuth } from '../middleware/auth';
-import { uploadUrlRateLimiter } from '../middleware/rateLimit';
+import { imageAttachRateLimiter, uploadUrlDailyLimiter, uploadUrlRateLimiter } from '../middleware/rateLimit';
 import { validate } from '../middleware/validate';
 import { cookbookSaveRouter } from './cookbook.routes';
 
@@ -34,9 +34,8 @@ recipeRouter.get(
 // swallow them as a recipe id lookup instead.
 recipeRouter.post<ParamsDictionary, unknown, CreateRecipeUploadUrlInput>(
   '/images/upload-url',
-  uploadUrlRateLimiter,
   validate({ body: createRecipeUploadUrlSchema }),
-  ...authed(recipeController.createUploadUrl),
+  ...authed(recipeController.createUploadUrl, uploadUrlRateLimiter, uploadUrlDailyLimiter),
 );
 
 recipeRouter.get(
@@ -54,13 +53,13 @@ recipeRouter.get(
 recipeRouter.post(
   '/',
   validate({ body: createRecipeSchema }),
-  ...authed(recipeController.createRecipe),
+  ...authed(recipeController.createRecipe, imageAttachRateLimiter),
 );
 
 recipeRouter.patch(
   '/:recipeId',
   validate({ params: recipeIdParamsSchema, body: updateRecipeSchema }),
-  ...authed(recipeController.updateRecipe),
+  ...authed(recipeController.updateRecipe, imageAttachRateLimiter),
 );
 
 recipeRouter.delete(

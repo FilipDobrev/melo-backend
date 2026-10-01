@@ -3,7 +3,7 @@ import type { ParamsDictionary } from 'express-serve-static-core';
 import { asyncHandler, authed } from '../middleware/asyncHandler';
 import { optionalAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { exportRateLimiter, uploadUrlRateLimiter } from '../middleware/rateLimit';
+import { exportRateLimiter, imageAttachRateLimiter, uploadUrlDailyLimiter, uploadUrlRateLimiter } from '../middleware/rateLimit';
 import * as userController from '../controllers/user.controller';
 import {
   avatarUploadUrlSchema,
@@ -31,7 +31,11 @@ userRouter.use(userPostRouter);
 userRouter.use(userRecipeRouter);
 
 userRouter.get('/me', ...authed(userController.getMe));
-userRouter.patch('/me', validate({ body: updateMeSchema }), ...authed(userController.updateMe));
+userRouter.patch(
+  '/me',
+  validate({ body: updateMeSchema }),
+  ...authed(userController.updateMe, imageAttachRateLimiter),
+);
 userRouter.delete('/me', validate({ body: deleteMeSchema }), ...authed(userController.deleteMe));
 userRouter.post('/me/restore', ...authed(userController.restoreMe));
 userRouter.get('/me/export', exportRateLimiter, ...authed(userController.exportMe));
@@ -41,9 +45,8 @@ userRouter.get('/me/export', exportRateLimiter, ...authed(userController.exportM
 // routes on postRouter/recipeRouter.
 userRouter.post<ParamsDictionary, unknown, AvatarUploadUrlInput>(
   '/me/avatar/upload-url',
-  uploadUrlRateLimiter,
   validate({ body: avatarUploadUrlSchema }),
-  ...authed(userController.createAvatarUploadUrl),
+  ...authed(userController.createAvatarUploadUrl, uploadUrlRateLimiter, uploadUrlDailyLimiter),
 );
 
 userRouter.get(

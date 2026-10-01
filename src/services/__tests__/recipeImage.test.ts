@@ -31,18 +31,14 @@ describe('resolveRecipeImageUrl', () => {
 
 describe('validateRecipeImageKey', () => {
   it('accepts a known preset', () => {
-    expect(() => validateRecipeImageKey('preset:breakfast', 'owner-1')).not.toThrow();
+    expect(() => validateRecipeImageKey('preset:breakfast')).not.toThrow();
   });
 
   it('rejects an unknown preset slug', () => {
-    expect(() => validateRecipeImageKey('preset:not-a-real-slug', 'owner-1')).toThrow(BadRequestError);
+    expect(() => validateRecipeImageKey('preset:not-a-real-slug')).toThrow(BadRequestError);
   });
 
-  it('accepts an uploaded key under the caller\'s own prefix', () => {
-    expect(() => validateRecipeImageKey('recipes/owner-1/photo.jpg', 'owner-1')).not.toThrow();
-  });
-
-  it("rejects another user's uploaded key", () => {
-    expect(() => validateRecipeImageKey('recipes/owner-2/photo.jpg', 'owner-1')).toThrow(BadRequestError);
+  it('leaves upload keys to promoteUpload, which enforces ownership', () => {
+    expect(() => validateRecipeImageKey('uploads/owner-1/photo.jpg')).not.toThrow();
   });
 });

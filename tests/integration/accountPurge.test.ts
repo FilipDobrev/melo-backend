@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { app } from './helpers/testApp';
-import { authHeader, createPost, createRecipe, registerUser, uploadRealImage } from './helpers/factories';
+import { attachedKeyFor, authHeader, createPost, createRecipe, registerUser, uploadRealImage } from './helpers/factories';
 import { prisma } from '../../src/lib/prisma';
 import { env } from '../../src/config/env';
 import {
@@ -97,7 +97,7 @@ describe('account purge', () => {
     const recipeDetailRes = await request(app).get(`/api/v1/recipes/${sharedRecipe.id}`);
     expect(recipeDetailRes.status).toBe(200);
     expect(recipeDetailRes.body.imageUrl).toContain('/static/recipe-presets/');
-    expect(recipeDetailRes.body.imageUrl).not.toContain(recipeImage.storageKey);
+    expect(recipeDetailRes.body.imageUrl).not.toContain(attachedKeyFor(recipeImage.storageKey, 'recipes'));
   });
 
   it('re-running the purge, and purging a second user, reuses the same tombstone account', async () => {

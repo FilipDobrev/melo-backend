@@ -1,4 +1,4 @@
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { env } from '../config/env';
 
@@ -42,16 +42,58 @@ export const generalApiLimiter = rateLimit({
 });
 
 /**
+ * Keys a limiter by the authenticated user. Must be mounted after `requireAuth` (pass it to
+ * `authed()` as an after-auth middleware), which is what sets `req.userId`.
+ *
+ * Per user rather than per IP: behind a carrier NAT one heavy user would lock out everyone
+ * sharing the IP, and an attacker could sidestep a per-IP limit just by rotating IPs.
+ */
+function keyByUserId(req: Request): string {
+  if (!req.userId) {
+    throw new Error('Per-user rate limiter mounted before requireAuth');
+  }
+  return req.userId;
+}
+
+/**
  * Presigned upload URLs mint temporary write access to object storage, so
- * this is deliberately far tighter than the general limiter - a caller
- * legitimately uploading images does so a handful of times per window, not
- * dozens.
+ * this is deliberately far tighter than the general limiter. Shared by the
+ * post, recipe and avatar upload-url routes, so the budget is per user
+ * across all three.
  */
 export const uploadUrlRateLimiter = rateLimit({
   windowMs: env.UPLOAD_URL_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
   limit: env.UPLOAD_URL_RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: keyByUserId,
+  handler: tooManyRequests,
+});
+
+/**
+ * Second, longer budget on the same upload-url routes. The short window stops bursts; this caps
+ * how much one account can push into storage in a day.
+ */
+export const uploadUrlDailyLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  limit: env.UPLOAD_URL_DAILY_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: keyByUserId,
+  handler: tooManyRequests,
+});
+
+/**
+ * Writes that attach an uploaded image (create/update post, create/update recipe, update
+ * profile) each cost several storage operations - HEAD, ranged GET, copy and delete - so they
+ * get their own per-user budget on top of the general limiter.
+ */
+export const imageAttachRateLimiter = rateLimit({
+  windowMs: env.IMAGE_ATTACH_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000,
+  limit: env.IMAGE_ATTACH_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: keyByUserId,
   handler: tooManyRequests,
 });
 

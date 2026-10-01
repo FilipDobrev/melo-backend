@@ -13,7 +13,7 @@ import {
 } from './helpers/factories';
 
 describe('POST /users/me/avatar/upload-url', () => {
-  it('returns a storage key under the caller\'s own avatar prefix', async () => {
+  it('returns a staging key under the caller\'s own uploads prefix', async () => {
     const user = await registerUser(app);
 
     const res = await request(app)
@@ -23,7 +23,7 @@ describe('POST /users/me/avatar/upload-url', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.uploadUrl).toEqual(expect.any(String));
-    expect(res.body.storageKey.startsWith(`avatars/${user.id}/`)).toBe(true);
+    expect(res.body.storageKey.startsWith(`uploads/${user.id}/`)).toBe(true);
   });
 
   it('rejects an anonymous caller with 401', async () => {

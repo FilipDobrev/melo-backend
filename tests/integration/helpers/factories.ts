@@ -15,18 +15,28 @@ function unique(): string {
 
 export const NONEXISTENT_UUID = '00000000-0000-0000-0000-000000000000';
 
-/// The shortest byte sequence that satisfies storage.service's JPEG magic-
-/// number check (FF D8 FF ...). It is not a decodable photo, but attach-time
-/// verification only reads the header, never renders the file, so this is
-/// enough to exercise "a real upload happened" through the actual presigned
-/// PUT -> MinIO -> HeadObject/GetObject path rather than mocking any of it.
-export const TINY_JPEG_BYTES = Buffer.from([
-  0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01,
-  0x00, 0x01, 0x00, 0x00, 0xff, 0xd9,
-]);
+/// A minimal JPEG header (SOI, APP0, SOF0 declaring `width` x `height`, EOI). It is not a
+/// decodable photo, but attach-time verification only reads the header and the frame
+/// dimensions, never renders the file, so this is enough to exercise "a real upload happened"
+/// through the actual presigned PUT -> MinIO -> HeadObject/GetObject/CopyObject path.
+export function buildJpegBytes(width: number, height: number): Buffer {
+  return Buffer.from([
+    0xff, 0xd8,
+    0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+    0xff, 0xc0, 0x00, 0x0b, 0x08, height >> 8, height & 0xff, width >> 8, width & 0xff, 0x01, 0x01, 0x11, 0x00,
+    0xff, 0xd9,
+  ]);
+}
+
+export const TINY_JPEG_BYTES = buildJpegBytes(1, 1);
+
+/// The key an upload ends up under once it is attached to a post, recipe or avatar.
+export function attachedKeyFor(uploadKey: string, folder: 'posts' | 'recipes' | 'avatars'): string {
+  return uploadKey.replace(/^uploads\//, `${folder}/`);
+}
 
 /// Deliberately not an image: same length class as TINY_JPEG_BYTES but with
-/// no JPEG/PNG/WebP magic number, for the "declared image, wasn't one" case.
+/// no JPEG magic number, for the "declared image, wasn't one" case.
 export const NOT_AN_IMAGE_BYTES = Buffer.from('this is definitely not an image file');
 
 export function authHeader(token: string): [string, string] {

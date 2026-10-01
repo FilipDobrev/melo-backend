@@ -77,10 +77,22 @@ const envSchema = z.object({
   GENERAL_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(1),
   /**
    * Presigned upload URLs mint temporary write access to object storage,
-   * so this is deliberately far tighter than the general limiter.
+   * so this is deliberately far tighter than the general limiter. Counted
+   * per authenticated user, not per IP.
    */
   UPLOAD_URL_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   UPLOAD_URL_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(5),
+  /**
+   * Per-user cap on upload URLs per 24 hours, on top of the short window.
+   */
+  UPLOAD_URL_DAILY_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  /**
+   * Attaching an uploaded image to a post, recipe or avatar costs several
+   * storage operations (HEAD, ranged GET, copy, delete), so it gets its own
+   * per-user budget.
+   */
+  IMAGE_ATTACH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
+  IMAGE_ATTACH_RATE_LIMIT_WINDOW_MINUTES: z.coerce.number().int().positive().default(15),
   /**
    * GET /users/me/export is by far the most expensive endpoint in the API -
    * it walks every table a user owns rows in, unpaginated, in one request.

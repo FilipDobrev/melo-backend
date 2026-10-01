@@ -10,8 +10,8 @@ required:
 properties:
   contentType:
     type: string
-    description: 'One of: image/jpeg, image/png, image/webp.'
+    description: 'Must be image/jpeg.'
   contentLength:
     type: integer
     minimum: 1
-    description: Exact byte size of the file to be uploaded. Measure it, do not estimate. Rejected above the 10 MB limit.
+    description: Exact byte size of the file to be uploaded. Measure it, do not estimate. Rejected above the 2 MB limit.
