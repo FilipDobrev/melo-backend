@@ -3,9 +3,10 @@ post:
   summary: Create a post
   description: >-
     A post always documents cooking a recipe: `recipeId` is required and
-    must reference an existing recipe. `imageKeys` takes 1 to 10 storage
+    must reference an existing recipe. `imageKeys` takes 0 to 10 storage
     keys, each under the caller's own upload prefix and each verified
-    against storage before the post is created.
+    against storage before the post is created. A post with no images is
+    valid; clients then show `recipe.imageUrl`.
   tags: [Posts]
   security:
     - bearerAuth: []

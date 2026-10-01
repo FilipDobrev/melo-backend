@@ -6,6 +6,7 @@ import { prisma, type Db } from '../lib/prisma';
 import { resolveProfileImage } from '../lib/profileImage';
 import * as categoryRepository from '../repositories/category.repository';
 import * as cookbookRepository from '../repositories/cookbook.repository';
+import * as postRepository from '../repositories/post.repository';
 import * as productRepository from '../repositories/product.repository';
 import * as recipeRepository from '../repositories/recipe.repository';
 import type { RecipeDetailRow, RecipeSummaryRow } from '../repositories/recipe.repository';
@@ -310,9 +311,16 @@ export async function deleteRecipe(recipeId: string, viewerId: string): Promise<
   const existing = await recipeRepository.findRecipeOwner(recipeId);
   if (!existing) throw new NotFoundError('Recipe not found');
   if (existing.ownerId !== viewerId) throw new ForbiddenError();
+  // Posts cascade-delete with the recipe, taking their image rows with them, so their storage
+  // keys must be read first or the objects would leak.
+  const postImageKeys = await postRepository.findImageKeysByRecipe(recipeId);
   await recipeRepository.deleteRecipe(recipeId);
+  const keysToDelete = [...postImageKeys];
   if (existing.imageKey !== null && storageService.isOwnedKey(existing.imageKey, 'recipes', viewerId)) {
-    storageService.deleteObjectsInBackground([existing.imageKey], { reason: 'recipe deleted', recipeId });
+    keysToDelete.push(existing.imageKey);
+  }
+  if (keysToDelete.length > 0) {
+    storageService.deleteObjectsInBackground(keysToDelete, { reason: 'recipe deleted', recipeId });
   }
 }
 

@@ -16,6 +16,7 @@ function buildRow(overrides: Partial<PostCardRow> = {}): PostCardRow {
       id: 'recipe-1',
       title: 'Omelette',
       servings: 1,
+      imageKey: null,
       ingredients: [
         {
           quantity: 200,
@@ -53,12 +54,28 @@ describe('toPostResponse', () => {
     expect(response.commentCount).toBe(0);
   });
 
+  it('returns no images and the recipe preset image url for a post without photos', () => {
+    const response = toPostResponse(buildRow({ images: [] }), EMPTY_REACTION_SUMMARY, false);
+
+    expect(response.images).toEqual([]);
+    expect(response.recipe.imageUrl).toContain('/static/recipe-presets/default.svg');
+  });
+
+  it('resolves the recipe own uploaded image into recipe.imageUrl', () => {
+    const base = buildRow();
+    const row = buildRow({ images: [], recipe: { ...base.recipe, imageKey: 'recipes/owner-1/photo.jpg' } });
+    const response = toPostResponse(row, EMPTY_REACTION_SUMMARY, false);
+
+    expect(response.recipe.imageUrl).toContain('recipes/owner-1/photo.jpg');
+  });
+
   it('computes recipe nutrition from ingredients when a recipe is attached', () => {
     const row = buildRow({
       recipe: {
         id: 'recipe-1',
         title: 'Omelette',
         servings: 2,
+        imageKey: null,
         ingredients: [
           {
             quantity: 200,
@@ -87,6 +104,7 @@ describe('toPostResponse', () => {
       id: 'recipe-1',
       title: 'Omelette',
       servings: 2,
+      imageUrl: 'http://localhost:4000/static/recipe-presets/default.svg',
       nutrition: { calories: 300, protein: 26, carbs: 2, fat: 22, sugar: 0.8 },
       isSaved: false,
     });

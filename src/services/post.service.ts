@@ -1,4 +1,4 @@
-import { NotFoundError, ForbiddenError, BadRequestError } from '../lib/errors';
+import { NotFoundError, ForbiddenError } from '../lib/errors';
 import type { CursorPagination, Page } from '../lib/pagination';
 import { toPage } from '../lib/pagination';
 import { prisma } from '../lib/prisma';
@@ -10,6 +10,7 @@ import * as reactionRepository from '../repositories/reaction.repository';
 import { EMPTY_REACTION_SUMMARY, type ReactionSummary } from '../repositories/reaction.repository';
 import { deleteObjectsInBackground, promoteUpload, publicUrlFor } from './storage.service';
 import { recipeNutrition, type Nutrition } from './nutrition';
+import { resolveRecipeImageUrl } from './recipeImage';
 
 export interface AuthorSummary {
   id: string;
@@ -35,6 +36,8 @@ export interface RecipeSummary {
   nutrition: Nutrition;
   isSaved: boolean;
   servings: number;
+  /** The recipe's own image (upload or preset); clients show it when the post has no images. */
+  imageUrl: string;
 }
 
 export interface PostResponse {
@@ -54,6 +57,8 @@ export function toPostResponse(
   reactions: ReactionSummary,
   isSaved: boolean,
 ): PostResponse {
+  // `images` holds only the post's own photos. Clients fall back to `recipe.imageUrl` when it is
+  // empty, and that image belongs to the recipe, so post edits and deletes never touch it.
   return {
     id: row.id,
     caption: row.caption,
@@ -68,6 +73,7 @@ export function toPostResponse(
       id: row.recipe.id,
       title: row.recipe.title,
       servings: row.recipe.servings,
+      imageUrl: resolveRecipeImageUrl(row.recipe.imageKey),
       nutrition: recipeNutrition(
         row.recipe.ingredients.map((ingredient) => ({
           quantity: ingredient.quantity,
@@ -259,15 +265,11 @@ export async function deletePost(postId: string, userId: string): Promise<void> 
 /**
  * @throws {NotFoundError} if the image does not exist under this post.
  * @throws {ForbiddenError} if the caller does not own the post.
- * @throws {BadRequestError} if it is the post's only remaining image - a post must keep at least one.
  */
 export async function deletePostImage(postId: string, imageId: string, userId: string): Promise<void> {
   const image = await postRepository.findImageWithPost(imageId);
   if (!image || image.postId !== postId) throw new NotFoundError('Image not found');
   if (image.post.ownerId !== userId) throw new ForbiddenError();
-  if (image.post._count.images <= 1) {
-    throw new BadRequestError('A post must keep at least one image');
-  }
 
   await postRepository.deleteImage(imageId);
   deleteObjectsInBackground([image.storageKey], { reason: 'post image deleted', postId, imageId });

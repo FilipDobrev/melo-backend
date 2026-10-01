@@ -345,6 +345,11 @@ attached to the post are kept as-is; keys dropped from the set are deleted from
 storage. Keys must be unique. This check only runs when a key is attached,
 never on read.
 
+A post may have zero images. Post responses always include `recipe.imageUrl`
+(the recipe's own uploaded photo or preset drawing), and clients show it when
+`images` is empty. It is computed on read and never copied onto the post, so
+editing or deleting a post never touches the recipe's image.
+
 `PATCH /posts/:postId` accepts any subset of `{ caption, recipeId, imageKeys }`.
 An absent `caption` key leaves it untouched; an explicit `caption: null` clears
 it. `recipeId`, when present, must reference an existing recipe (404 if not) -
@@ -352,15 +357,15 @@ it stays required on the post, this only changes which recipe it links to.
 `imageKeys`, when present, replaces the whole image set wholesale, in the
 given order (order defines position) - it is not a diff, so a client must
 re-send the storage keys of any existing images it wants to keep alongside
-any new ones, and dropping below 1 or exceeding 10 images is rejected. Every
+any new ones. 0 to 10 images are allowed, so `[]` removes them all; more than 10 is rejected. Every
 key, including ones already attached to the post, goes through the same
 ownership and storage verification as on create.
 
-| POST | `/posts` | yes | `{ caption?, recipeId, imageKeys: string[] }` min 1 image. `recipeId` is required: a post always documents cooking a recipe |
+| POST | `/posts` | yes | `{ caption?, recipeId, imageKeys: string[] }`, 0 to 10 images. `recipeId` is required: a post always documents cooking a recipe |
 | GET | `/posts/:postId` | optional | detail incl. reaction summary + comment count |
 | PATCH | `/posts/:postId` | yes, owner | any subset of `{ caption?, recipeId?, imageKeys? }`. 403 on non-owner, 404 on unknown post or unknown `recipeId` |
 | DELETE | `/posts/:postId` | yes, owner | 204 |
-| DELETE | `/posts/:postId/images/:imageId` | yes, owner | 204, refuses to remove the last image |
+| DELETE | `/posts/:postId/images/:imageId` | yes, owner | 204. Any image may be removed, including the last |
 | PUT | `/posts/:postId/reactions` | yes | `{ emoji }` upsert own reaction |
 | DELETE | `/posts/:postId/reactions` | yes | 204 |
 | GET | `/posts/:postId/comments` | optional | paginated |

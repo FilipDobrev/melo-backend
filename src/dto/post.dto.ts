@@ -8,13 +8,13 @@ export const createUploadUrlSchema = z.object({
 });
 export type CreateUploadUrlInput = z.infer<typeof createUploadUrlSchema>;
 
+// Zero images is valid: clients then show the recipe's image instead (computed at read time).
 const imageKeysSchema = z
   .array(z.string().trim().min(1).max(200))
-  .min(1)
   .max(10)
   .refine((keys) => new Set(keys).size === keys.length, { message: 'Duplicate image keys' });
 
-/** `imageKeys` must be storage keys already obtained from `createUploadUrlSchema`'s endpoint (or, on update, already attached to the post), 1 to 10 unique ones. */
+/** `imageKeys` must be storage keys already obtained from `createUploadUrlSchema`'s endpoint (or, on update, already attached to the post), 0 to 10 unique ones. */
 export const createPostSchema = z.object({
   caption: z.string().trim().max(2000).optional(),
   // A post always documents cooking a recipe, so the link is required.

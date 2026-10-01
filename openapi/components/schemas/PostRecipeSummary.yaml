@@ -9,6 +9,7 @@ required:
   - nutrition
   - isSaved
   - servings
+  - imageUrl
 properties:
   id:
     type: string
@@ -22,6 +23,12 @@ properties:
     description: >-
       Whether the current viewer has saved this recipe to their own
       cookbook. False for an anonymous viewer.
+  imageUrl:
+    type: string
+    format: uri
+    description: >-
+      The recipe's own image (upload or preset), always a resolved URL.
+      Clients show it when the post has no images of its own.
   servings:
     type: integer
     minimum: 1

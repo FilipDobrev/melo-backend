@@ -12,6 +12,23 @@ import {
   uploadRealImage,
 } from './helpers/factories';
 
+describe('POST /posts without images', () => {
+  it('creates a post with imageKeys [] and exposes the recipe image url', async () => {
+    const owner = await registerUser(app);
+    const recipe = await createRecipe(app, owner.accessToken);
+
+    const res = await request(app)
+      .post('/api/v1/posts')
+      .set(...authHeader(owner.accessToken))
+      .send({ caption: 'No photo', recipeId: recipe.id, imageKeys: [] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.images).toEqual([]);
+    expect(res.body.recipe.imageUrl).toEqual(expect.any(String));
+    expect(res.body.recipe.imageUrl).toBe(recipe.imageUrl);
+  });
+});
+
 describe('PATCH /posts/:postId', () => {
   it('rejects an anonymous caller with 401', async () => {
     const owner = await registerUser(app);
@@ -190,7 +207,7 @@ describe('PATCH /posts/:postId', () => {
     ]);
   });
 
-  it('rejects dropping to zero images', async () => {
+  it('allows dropping to zero images and falls back to the recipe image url', async () => {
     const owner = await registerUser(app);
     const recipe = await createRecipe(app, owner.accessToken);
     const post = await createPost(app, owner.accessToken, recipe.id);
@@ -200,7 +217,9 @@ describe('PATCH /posts/:postId', () => {
       .set(...authHeader(owner.accessToken))
       .send({ imageKeys: [] });
 
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(200);
+    expect(res.body.images).toEqual([]);
+    expect(res.body.recipe.imageUrl).toEqual(expect.any(String));
   });
 
   it("rejects another user's key", async () => {
@@ -321,7 +340,7 @@ describe('DELETE /posts/:postId/images/:imageId', () => {
     expect(res.status).toBe(404);
   });
 
-  it('lets the owner delete an image, but refuses to remove the last one', async () => {
+  it('lets the owner delete an image, including the last one', async () => {
     const owner = await registerUser(app);
     const recipe = await createRecipe(app, owner.accessToken);
     const post = await createPost(app, owner.accessToken, recipe.id, {}, 2);
@@ -335,7 +354,7 @@ describe('DELETE /posts/:postId/images/:imageId', () => {
     const lastDelete = await request(app)
       .delete(`/api/v1/posts/${post.id}/images/${secondImage.id}`)
       .set(...authHeader(owner.accessToken));
-    expect(lastDelete.status).toBe(400);
+    expect(lastDelete.status).toBe(204);
   });
 });
 

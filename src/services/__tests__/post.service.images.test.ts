@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../config/env', () => ({ env: {} }));
 vi.mock('../storage.service', () => ({
+  isOwnedKey: vi.fn(),
   promoteUpload: vi.fn(),
   deleteObjectsInBackground: vi.fn(),
   publicUrlFor: (key: string) => `https://cdn.test/${key}`,
@@ -44,7 +45,7 @@ const detailRow = {
   ownerId: OWNER,
   owner: { id: OWNER, username: 'chef', profileImage: null },
   images: [],
-  recipe: { id: 'recipe-1', title: 'Omelette', servings: 1, ingredients: [] },
+  recipe: { id: 'recipe-1', title: 'Omelette', servings: 1, imageKey: null, ingredients: [] },
   _count: { comments: 0 },
 };
 
@@ -140,5 +141,49 @@ describe('post deletion cleanup', () => {
     await deletePostImage(POST_ID, 'img-1', OWNER);
 
     expect(deleteObjectsInBackground).toHaveBeenCalledWith([`posts/${OWNER}/a.jpg`], expect.anything());
+  });
+
+  it('allows deleting the last remaining image', async () => {
+    vi.mocked(postRepository.findImageWithPost).mockResolvedValue({
+      id: 'img-1',
+      postId: POST_ID,
+      storageKey: `posts/${OWNER}/a.jpg`,
+      post: { ownerId: OWNER, _count: { images: 1 } },
+    });
+
+    await deletePostImage(POST_ID, 'img-1', OWNER);
+
+    expect(postRepository.deleteImage).toHaveBeenCalledWith('img-1');
+  });
+
+  it('never deletes the recipe image when a post without images is deleted', async () => {
+    const recipeKey = `recipes/${OWNER}/recipe-photo.jpg`;
+    vi.mocked(postRepository.findDetailById).mockResolvedValue({
+      ...detailRow,
+      recipe: { ...detailRow.recipe, imageKey: recipeKey },
+    });
+    vi.mocked(postRepository.findImageKeys).mockResolvedValue([]);
+
+    await deletePost(POST_ID, OWNER);
+
+    const deletedKeys = vi.mocked(deleteObjectsInBackground).mock.calls.flatMap(([keys]) => keys);
+    expect(deletedKeys).not.toContain(recipeKey);
+    expect(deletedKeys).toEqual([]);
+  });
+});
+
+describe('updatePost with zero images', () => {
+  it('removes every current image, schedules their storage deletion, and promotes nothing', async () => {
+    vi.mocked(postRepository.findImageKeys).mockResolvedValue([`posts/${OWNER}/a.jpg`]);
+
+    await updatePost(POST_ID, OWNER, { imageKeys: [] });
+
+    expect(promoteUpload).not.toHaveBeenCalled();
+    expect(postRepository.deletePostImages).toHaveBeenCalledWith(POST_ID, expect.anything());
+    expect(postRepository.createPostImages).toHaveBeenCalledWith(POST_ID, [], expect.anything());
+    expect(deleteObjectsInBackground).toHaveBeenCalledWith(
+      [`posts/${OWNER}/a.jpg`],
+      expect.objectContaining({ postId: POST_ID }),
+    );
   });
 });

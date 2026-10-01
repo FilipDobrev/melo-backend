@@ -24,6 +24,7 @@ export const POST_CARD_SELECT = {
       id: true,
       title: true,
       servings: true,
+      imageKey: true,
       ingredients: {
         select: {
           quantity: true,
@@ -169,6 +170,18 @@ export function findImageWithPost(
 /** Storage keys of every image currently attached to the post. */
 export async function findImageKeys(postId: string, db: Db = prisma): Promise<string[]> {
   const images = await db.postImage.findMany({ where: { postId }, select: { storageKey: true } });
+  return images.map((image) => image.storageKey);
+}
+
+/**
+ * Storage keys of every image on every post of a recipe. Read before deleting the recipe, because
+ * the posts and their image rows cascade away with it.
+ */
+export async function findImageKeysByRecipe(recipeId: string, db: Db = prisma): Promise<string[]> {
+  const images = await db.postImage.findMany({
+    where: { post: { recipeId } },
+    select: { storageKey: true },
+  });
   return images.map((image) => image.storageKey);
 }
 

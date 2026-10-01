@@ -18,11 +18,12 @@ properties:
     description: Changes which recipe this post links to. The post always has a recipe; this field cannot be cleared, only changed.
   imageKeys:
     type: array
-    minItems: 1
+    minItems: 0
     maxItems: 10
     items:
       type: string
     description: >-
       Replaces the whole image set, in order. Re-send the storage keys of
       any existing images to keep them alongside any new ones. Every key,
-      including already-attached ones, is re-verified against storage.
+      including already-attached ones, is re-verified against storage. An empty
+      array removes every image.
